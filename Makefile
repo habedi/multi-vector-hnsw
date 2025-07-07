@@ -1,5 +1,3 @@
-# A generic Makefile for a Java project using Maven
-
 # Use the Maven wrapper if it exists, otherwise fall back to a system-wide mvn
 MVN := $(if $(wildcard ./mvnw),./mvnw,mvn)
 SHELL := /bin/bash

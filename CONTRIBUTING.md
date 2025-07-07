@@ -5,7 +5,7 @@ All contributions are welcome.
 
 ## How to Contribute
 
-Please check the [issue tracker](https://github.com/habedi/template-java-project/issues) to see if there is a relevant
+Please check the [issue tracker](https://github.com/habedi/multi-vector-hnsw/issues) to see if there is a relevant
 issue you would like to work on.
 
 ### Reporting Bugs
