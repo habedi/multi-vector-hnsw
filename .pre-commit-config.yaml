@@ -1,0 +1,36 @@
+# Pre-commit Git hooks configuration
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: format-check
+        name: Check code formatting
+        entry: make format-check
+        language: system
+        pass_filenames: false
+        types: [java]
+
+      - id: lint
+        name: Check code style
+        entry: make lint
+        language: system
+        pass_filenames: false
+        types: [java]
+
+      - id: test
+        name: Run tests
+        entry: make test
+        language: system
+        pass_filenames: false
+        stages: [push]
