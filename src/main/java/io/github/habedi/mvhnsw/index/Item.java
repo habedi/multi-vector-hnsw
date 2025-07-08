@@ -6,9 +6,9 @@ import java.util.List;
 
 public interface Item<V extends Vector<?>, P> {
 
-    long getId();
+    long id();
 
-    List<V> getVectors();
+    List<V> vectors();
 
-    P getPayload();
+    P payload();
 }

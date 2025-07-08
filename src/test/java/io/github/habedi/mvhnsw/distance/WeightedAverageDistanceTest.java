@@ -32,17 +32,17 @@ class WeightedAverageDistanceTest {
     private Item<FloatVector, String> createItem(long id, String payload, float[][] vectors) {
         return new Item<>() {
             @Override
-            public long getId() {
+            public long id() {
                 return id;
             }
 
             @Override
-            public List<FloatVector> getVectors() {
+            public List<FloatVector> vectors() {
                 return List.of(new FloatVector(vectors[0]), new FloatVector(vectors[1]));
             }
 
             @Override
-            public String getPayload() {
+            public String payload() {
                 return payload;
             }
         };

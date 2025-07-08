@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-007ec6?style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/multi-vector-hnsw)
 [![Release](https://img.shields.io/github/release/habedi/multi-vector-hnsw.svg?style=flat&labelColor=282c34&color=f46623&logo=github)](https://github.com/habedi/multi-vector-hnsw/releases/latest)
 
-A Java implementation of HNSW with multi-vector support
+A Java implementation of HNSW with multi-vector search support
 
 </div>
 

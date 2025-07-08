@@ -50,9 +50,9 @@ class MultiVectorHNSWTest {
         assertEquals(1, index.size());
         Optional<Item<FloatVector, String>> retrievedItem = index.get(id);
         assertTrue(retrievedItem.isPresent());
-        assertEquals(id, retrievedItem.get().getId());
-        assertEquals(vectors, retrievedItem.get().getVectors());
-        assertEquals(payload, retrievedItem.get().getPayload());
+        assertEquals(id, retrievedItem.get().id());
+        assertEquals(vectors, retrievedItem.get().vectors());
+        assertEquals(payload, retrievedItem.get().payload());
     }
 
     @Test
@@ -86,7 +86,7 @@ class MultiVectorHNSWTest {
                 index.search(Arrays.asList(queryVector1, queryVector2), 1);
 
         assertEquals(1, results.size());
-        assertEquals(1, results.get(0).item().getId());
+        assertEquals(1, results.get(0).item().id());
     }
 
     @Test
@@ -107,42 +107,19 @@ class MultiVectorHNSWTest {
 
         Optional<Item<FloatVector, String>> item = loadedIndex.get(25L);
         assertTrue(item.isPresent());
-        assertEquals("payload 25", item.get().getPayload());
+        assertEquals("payload 25", item.get().payload());
 
         // Verify search works on loaded index
         List<SearchResult<FloatVector, String>> results =
                 loadedIndex.search(
                         List.of(FloatVector.of(25f, 26f, 27f), FloatVector.of(28f, 29f, 30f)), 1);
         assertEquals(1, results.size());
-        assertEquals(25L, results.get(0).item().getId());
+        assertEquals(25L, results.get(0).item().id());
     }
 
     /** A simple implementation of the Item interface for testing purposes. */
-    private static class TestItem implements Item<FloatVector, String>, Serializable {
+    private record TestItem(long id, List<FloatVector> vectors, String payload)
+            implements Item<FloatVector, String>, Serializable {
         @Serial private static final long serialVersionUID = 1L;
-        private final long id;
-        private final List<FloatVector> vectors;
-        private final String payload;
-
-        public TestItem(long id, List<FloatVector> vectors, String payload) {
-            this.id = id;
-            this.vectors = vectors;
-            this.payload = payload;
-        }
-
-        @Override
-        public long getId() {
-            return id;
-        }
-
-        @Override
-        public List<FloatVector> getVectors() {
-            return vectors;
-        }
-
-        @Override
-        public String getPayload() {
-            return payload;
-        }
     }
 }

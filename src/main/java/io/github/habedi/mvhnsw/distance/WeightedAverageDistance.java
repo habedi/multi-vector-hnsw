@@ -30,12 +30,12 @@ public class WeightedAverageDistance implements MultiVectorDistance<FloatVector>
 
     @Override
     public double compute(Item<FloatVector, ?> item1, Item<FloatVector, ?> item2) {
-        return compute(item1, item2.getVectors());
+        return compute(item1, item2.vectors());
     }
 
     @Override
     public double compute(Item<FloatVector, ?> item, List<FloatVector> queryVectors) {
-        List<FloatVector> itemVectors = item.getVectors();
+        List<FloatVector> itemVectors = item.vectors();
         if (itemVectors.size() != queryVectors.size()) {
             throw new IllegalArgumentException("Item vector count must match query vector count.");
         }

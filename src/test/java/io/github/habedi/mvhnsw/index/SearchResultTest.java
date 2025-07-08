@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.github.habedi.mvhnsw.common.FloatVector;
 import java.util.List;
-import java.util.Objects;
 import org.junit.jupiter.api.Test;
 
 class SearchResultTest {
@@ -72,45 +71,6 @@ class SearchResultTest {
     }
 
     /** A simple implementation of the Item interface for testing purposes. */
-    private static class TestItem implements Item<FloatVector, String> {
-        private final long id;
-        private final List<FloatVector> vectors;
-        private final String payload;
-
-        public TestItem(long id, List<FloatVector> vectors, String payload) {
-            this.id = id;
-            this.vectors = vectors;
-            this.payload = payload;
-        }
-
-        @Override
-        public long getId() {
-            return id;
-        }
-
-        @Override
-        public List<FloatVector> getVectors() {
-            return vectors;
-        }
-
-        @Override
-        public String getPayload() {
-            return payload;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            TestItem testItem = (TestItem) o;
-            return id == testItem.id
-                    && Objects.equals(vectors, testItem.vectors)
-                    && Objects.equals(payload, testItem.payload);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(id, vectors, payload);
-        }
-    }
+    private record TestItem(long id, List<FloatVector> vectors, String payload)
+            implements Item<FloatVector, String> {}
 }

@@ -5,14 +5,15 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-      - id: check-added-large-files
       - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=800']
 
   - repo: local
     hooks:
-      - id: format-check
-        name: Check code formatting
-        entry: make format-check
+      - id: format
+        name: Format the code
+        entry: make format
         language: system
         pass_filenames: false
         types: [ java ]
@@ -29,4 +30,4 @@ repos:
         entry: make test
         language: system
         pass_filenames: false
-        stages: [ push ]
+        stages: [ pre-push ]

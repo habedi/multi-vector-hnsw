@@ -54,17 +54,17 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
     private static <P> Item<FloatVector, P> createQueryItem(List<FloatVector> queryVectors) {
         return new Item<>() {
             @Override
-            public long getId() {
+            public long id() {
                 return -1;
             }
 
             @Override
-            public List<FloatVector> getVectors() {
+            public List<FloatVector> vectors() {
                 return queryVectors;
             }
 
             @Override
-            public P getPayload() {
+            public P payload() {
                 return null;
             }
         };
@@ -74,16 +74,16 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
     public void add(Item<FloatVector, P> item) {
         lock.writeLock().lock();
         try {
-            if (itemMap.containsKey(item.getId())) {
+            if (itemMap.containsKey(item.id())) {
                 // Use update for existing items to maintain consistency
                 update(item);
                 return;
             }
 
             int level = assignLevel();
-            Node newNode = new Node(item.getId(), level);
+            Node newNode = new Node(item.id(), level);
             nodes.put(newNode.id, newNode);
-            itemMap.put(item.getId(), item);
+            itemMap.put(item.id(), item);
 
             Node currentEntryPoint = entryPoint;
             if (currentEntryPoint == null) {
@@ -123,13 +123,13 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
     public void update(Item<FloatVector, P> item) {
         lock.writeLock().lock();
         try {
-            if (!itemMap.containsKey(item.getId())) {
+            if (!itemMap.containsKey(item.id())) {
                 throw new NoSuchElementException(
-                        "Item with ID " + item.getId() + " not found for update.");
+                        "Item with ID " + item.id() + " not found for update.");
             }
             // Simple and safe implementation: remove the old item and add the new one.
             // This creates a soft-deleted node that can be cleaned up by vacuum().
-            remove(item.getId());
+            remove(item.id());
             add(item);
         } finally {
             lock.writeLock().unlock();

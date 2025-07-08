@@ -23,9 +23,9 @@ class ItemTest {
         TestItem item = new TestItem(id, vectors, payload);
 
         // Verify the item's properties
-        assertEquals(id, item.getId());
-        assertEquals(vectors, item.getVectors());
-        assertEquals(payload, item.getPayload());
+        assertEquals(id, item.id());
+        assertEquals(vectors, item.vectors());
+        assertEquals(payload, item.payload());
     }
 
     @Test
@@ -40,10 +40,10 @@ class ItemTest {
         TestItem item = new TestItem(456L, vectors, "multiple vectors");
 
         // Verify the vectors
-        assertEquals(3, item.getVectors().size());
-        assertEquals(vector1, item.getVectors().get(0));
-        assertEquals(vector2, item.getVectors().get(1));
-        assertEquals(vector3, item.getVectors().get(2));
+        assertEquals(3, item.vectors().size());
+        assertEquals(vector1, item.vectors().get(0));
+        assertEquals(vector2, item.vectors().get(1));
+        assertEquals(vector3, item.vectors().get(2));
     }
 
     @Test
@@ -53,7 +53,7 @@ class ItemTest {
         TestItem item = new TestItem(789L, List.of(vector), null);
 
         // Verify the payload is null
-        assertNull(item.getPayload());
+        assertNull(item.payload());
     }
 
     /** A simple implementation of the Item interface for testing purposes. */
@@ -69,17 +69,17 @@ class ItemTest {
         }
 
         @Override
-        public long getId() {
+        public long id() {
             return id;
         }
 
         @Override
-        public List<FloatVector> getVectors() {
+        public List<FloatVector> vectors() {
             return vectors;
         }
 
         @Override
-        public String getPayload() {
+        public String payload() {
             return payload;
         }
     }
