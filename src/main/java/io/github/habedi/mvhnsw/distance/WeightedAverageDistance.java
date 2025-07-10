@@ -1,14 +1,12 @@
-// src/main/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistance.java
 package io.github.habedi.mvhnsw.distance;
 
 import io.github.habedi.mvhnsw.common.FloatVector;
-import io.github.habedi.mvhnsw.index.Item;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 
-public class WeightedAverageDistance implements MultiVectorDistance<FloatVector>, Serializable {
+public class WeightedAverageDistance implements MultiVectorDistance, Serializable {
 
     @Serial private static final long serialVersionUID = 1L;
     private final List<Distance<FloatVector>> distances;
@@ -29,21 +27,15 @@ public class WeightedAverageDistance implements MultiVectorDistance<FloatVector>
     }
 
     @Override
-    public double compute(Item<FloatVector, ?> item1, Item<FloatVector, ?> item2) {
-        return compute(item1, item2.vectors());
-    }
-
-    @Override
-    public double compute(Item<FloatVector, ?> item, List<FloatVector> queryVectors) {
-        List<FloatVector> itemVectors = item.vectors();
-        if (itemVectors.size() != queryVectors.size()) {
-            throw new IllegalArgumentException("Item vector count must match query vector count.");
+    public double compute(List<FloatVector> vectors1, List<FloatVector> vectors2) {
+        if (vectors1.size() != vectors2.size()) {
+            throw new IllegalArgumentException("Vector list sizes must match.");
         }
 
         double totalDistance = 0.0;
-        for (int i = 0; i < itemVectors.size(); i++) {
+        for (int i = 0; i < vectors1.size(); i++) {
             totalDistance +=
-                    weights[i] * distances.get(i).compute(itemVectors.get(i), queryVectors.get(i));
+                    weights[i] * distances.get(i).compute(vectors1.get(i), vectors2.get(i));
         }
         return totalDistance;
     }

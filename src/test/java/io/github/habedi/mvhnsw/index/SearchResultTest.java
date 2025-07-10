@@ -2,75 +2,44 @@ package io.github.habedi.mvhnsw.index;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import io.github.habedi.mvhnsw.common.FloatVector;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class SearchResultTest {
 
     @Test
     void testSearchResultCreation() {
-        // Create a test item
-        FloatVector vector = FloatVector.of(1.0f, 2.0f, 3.0f);
-        Item<FloatVector, String> item = new TestItem(123L, List.of(vector), "test payload");
-
-        // Create a search result
+        long id = 123L;
         double score = 0.75;
-        SearchResult<FloatVector, String> result = new SearchResult<>(item, score);
+        SearchResult result = new SearchResult(id, score);
 
-        // Verify the search result properties
-        assertEquals(item, result.item());
+        assertEquals(id, result.id());
         assertEquals(score, result.score());
     }
 
     @Test
     void testSearchResultEquality() {
-        // Create two identical items
-        FloatVector vector = FloatVector.of(1.0f, 2.0f, 3.0f);
-        Item<FloatVector, String> item1 = new TestItem(123L, List.of(vector), "test payload");
-        Item<FloatVector, String> item2 = new TestItem(123L, List.of(vector), "test payload");
+        SearchResult result1 = new SearchResult(123L, 0.75);
+        SearchResult result2 = new SearchResult(123L, 0.75);
 
-        // Create two search results with the same properties
-        SearchResult<FloatVector, String> result1 = new SearchResult<>(item1, 0.75);
-        SearchResult<FloatVector, String> result2 = new SearchResult<>(item2, 0.75);
-
-        // Verify equality
         assertEquals(result1, result2);
         assertEquals(result1.hashCode(), result2.hashCode());
     }
 
     @Test
     void testSearchResultInequality() {
-        // Create two different items
-        FloatVector vector1 = FloatVector.of(1.0f, 2.0f, 3.0f);
-        FloatVector vector2 = FloatVector.of(4.0f, 5.0f, 6.0f);
-        Item<FloatVector, String> item1 = new TestItem(123L, List.of(vector1), "payload1");
-        Item<FloatVector, String> item2 = new TestItem(456L, List.of(vector2), "payload2");
+        SearchResult result1 = new SearchResult(123L, 0.75);
+        SearchResult result2 = new SearchResult(456L, 0.85);
 
-        // Create two search results with different properties
-        SearchResult<FloatVector, String> result1 = new SearchResult<>(item1, 0.75);
-        SearchResult<FloatVector, String> result2 = new SearchResult<>(item2, 0.85);
-
-        // Verify inequality
         assertNotEquals(result1, result2);
     }
 
     @Test
     void testSearchResultToString() {
-        // Create a test item
-        FloatVector vector = FloatVector.of(1.0f, 2.0f, 3.0f);
-        Item<FloatVector, String> item = new TestItem(123L, List.of(vector), "test payload");
-
-        // Create a search result
-        SearchResult<FloatVector, String> result = new SearchResult<>(item, 0.75);
-
-        // Verify toString contains important information
+        SearchResult result = new SearchResult(123L, 0.75);
         String resultString = result.toString();
-        assertTrue(resultString.contains("SearchResult"));
-        assertTrue(resultString.contains("0.75"));
-    }
 
-    /** A simple implementation of the Item interface for testing purposes. */
-    private record TestItem(long id, List<FloatVector> vectors, String payload)
-            implements Item<FloatVector, String> {}
+        assertTrue(resultString.contains("SearchResult"));
+        assertTrue(resultString.contains("id=123"));
+        assertTrue(resultString.contains("score=0.75"));
+    }
 }

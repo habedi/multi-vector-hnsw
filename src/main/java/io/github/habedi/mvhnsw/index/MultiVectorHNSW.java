@@ -1,7 +1,9 @@
 package io.github.habedi.mvhnsw.index;
 
 import io.github.habedi.mvhnsw.common.FloatVector;
+import io.github.habedi.mvhnsw.distance.Distance;
 import io.github.habedi.mvhnsw.distance.MultiVectorDistance;
+import io.github.habedi.mvhnsw.distance.WeightedAverageDistance;
 import java.io.*;
 import java.nio.file.Path;
 import java.util.*;
@@ -10,80 +12,57 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-/**
- * A thread-safe, serializable implementation of the Hierarchical Navigable Small World (HNSW) graph
- * for approximate nearest neighbor search with multi-vector support.
- *
- * @param <P> The type of the payload associated with each item.
- */
-public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializable {
+public final class MultiVectorHNSW implements Index, Serializable {
 
     @Serial private static final long serialVersionUID = 1L;
 
-    private final MultiVectorDistance<FloatVector> multiVectorDistance;
+    private final MultiVectorDistance multiVectorDistance;
     private final int m;
     private final int efConstruction;
     private final double levelLambda;
-    private final Map<Long, Item<FloatVector, P>> itemMap;
+    private final Map<Long, List<FloatVector>> vectorMap;
     private final Map<Long, Node> nodes;
     private transient ReentrantReadWriteLock lock;
 
     private volatile Node entryPoint;
 
-    private MultiVectorHNSW(Builder<P> builder) {
+    private MultiVectorHNSW(Builder builder) {
         this.multiVectorDistance = builder.multiVectorDistance;
         this.m = builder.m;
         this.efConstruction = builder.efConstruction;
         this.levelLambda = 1 / Math.log(m);
-        this.itemMap = new ConcurrentHashMap<>();
+        this.vectorMap = new ConcurrentHashMap<>();
         this.nodes = new ConcurrentHashMap<>();
         this.lock = new ReentrantReadWriteLock();
         this.entryPoint = null;
     }
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
     @SuppressWarnings("unchecked")
-    public static <P> MultiVectorHNSW<P> load(Path path)
-            throws IOException, ClassNotFoundException {
+    public static MultiVectorHNSW load(Path path) throws IOException, ClassNotFoundException {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(path.toFile()))) {
-            MultiVectorHNSW<P> index = (MultiVectorHNSW<P>) ois.readObject();
-            index.lock = new ReentrantReadWriteLock(); // Re-initialize transient lock
+            MultiVectorHNSW index = (MultiVectorHNSW) ois.readObject();
+            index.lock = new ReentrantReadWriteLock();
             return index;
         }
     }
 
-    private static <P> Item<FloatVector, P> createQueryItem(List<FloatVector> queryVectors) {
-        return new Item<>() {
-            @Override
-            public long id() {
-                return -1;
-            }
-
-            @Override
-            public List<FloatVector> vectors() {
-                return queryVectors;
-            }
-
-            @Override
-            public P payload() {
-                return null;
-            }
-        };
-    }
-
     @Override
-    public void add(Item<FloatVector, P> item) {
+    public void add(long id, List<FloatVector> vectors) {
         lock.writeLock().lock();
         try {
-            if (itemMap.containsKey(item.id())) {
-                // Use update for existing items to maintain consistency
-                update(item);
+            if (vectorMap.containsKey(id)) {
+                update(id, vectors);
                 return;
             }
 
             int level = assignLevel();
-            Node newNode = new Node(item.id(), level);
-            nodes.put(newNode.id, newNode);
-            itemMap.put(item.id(), item);
+            Node newNode = new Node(id, level);
+            nodes.put(id, newNode);
+            vectorMap.put(id, vectors);
 
             Node currentEntryPoint = entryPoint;
             if (currentEntryPoint == null) {
@@ -91,11 +70,11 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
                 return;
             }
 
-            Node nearestNode = findEntryPointForLevel(currentEntryPoint, item, level);
+            Node nearestNode = findEntryPointForLevel(currentEntryPoint, vectors, level);
 
             for (int l = Math.min(level, getLevel(nearestNode)); l >= 0; l--) {
                 PriorityQueue<Neighbor> neighbors =
-                        searchLayer(nearestNode, item, efConstruction, l);
+                        searchLayer(nearestNode, vectors, efConstruction, l);
                 List<Long> newConnections = selectNeighbors(neighbors, m);
                 newNode.connections.get(l).addAll(newConnections);
 
@@ -103,7 +82,7 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
                     Node neighborNode = nodes.get(neighborId);
                     if (neighborNode != null) {
                         List<Long> neighborConnections = neighborNode.connections.get(l);
-                        neighborConnections.add(newNode.id);
+                        neighborConnections.add(id);
                         if (neighborConnections.size() > m) {
                             pruneConnections(neighborNode, l);
                         }
@@ -120,17 +99,14 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
     }
 
     @Override
-    public void update(Item<FloatVector, P> item) {
+    public void update(long id, List<FloatVector> vectors) {
         lock.writeLock().lock();
         try {
-            if (!itemMap.containsKey(item.id())) {
-                throw new NoSuchElementException(
-                        "Item with ID " + item.id() + " not found for update.");
+            if (!vectorMap.containsKey(id)) {
+                throw new NoSuchElementException("Item with ID " + id + " not found for update.");
             }
-            // Simple and safe implementation: remove the old item and add the new one.
-            // This creates a soft-deleted node that can be cleaned up by vacuum().
-            remove(item.id());
-            add(item);
+            remove(id);
+            add(id, vectors);
         } finally {
             lock.writeLock().unlock();
         }
@@ -144,25 +120,21 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
             if (node == null || node.deleted) {
                 return false;
             }
-            node.deleted = true; // Soft delete
-            return true; // Item remains in itemMap until vacuumed to allow in-flight searches
+            node.deleted = true;
+            return true;
         } finally {
             lock.writeLock().unlock();
         }
     }
 
     @Override
-    public void addAll(Collection<Item<FloatVector, P>> items) {
-        for (Item<FloatVector, P> item : items) {
-            add(item);
-        }
+    public void addAll(Map<Long, List<FloatVector>> items) {
+        items.forEach(this::add);
     }
 
     @Override
-    public void updateAll(Collection<Item<FloatVector, P>> items) {
-        for (Item<FloatVector, P> item : items) {
-            update(item);
-        }
+    public void updateAll(Map<Long, List<FloatVector>> items) {
+        items.forEach(this::update);
     }
 
     @Override
@@ -177,41 +149,36 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
     }
 
     @Override
-    public List<SearchResult<FloatVector, P>> search(List<FloatVector> queryVectors, int k) {
+    public List<SearchResult> search(List<FloatVector> queryVectors, int k) {
         lock.readLock().lock();
         try {
             Node currentEntryPoint = entryPoint;
-            if (currentEntryPoint == null || itemMap.isEmpty()) {
+            if (currentEntryPoint == null || vectorMap.isEmpty()) {
                 return Collections.emptyList();
             }
 
-            Item<FloatVector, P> queryItem = createQueryItem(queryVectors);
-            Node nearestNode = findEntryPointForLevel(currentEntryPoint, queryItem, 0);
+            Node nearestNode = findEntryPointForLevel(currentEntryPoint, queryVectors, 0);
 
             PriorityQueue<Neighbor> results =
-                    searchLayer(nearestNode, queryItem, Math.max(k, efConstruction), 0);
+                    searchLayer(nearestNode, queryVectors, Math.max(k, efConstruction), 0);
 
             return results.stream()
                     .sorted()
                     .limit(k)
-                    .map(
-                            neighbor ->
-                                    new SearchResult<>(itemMap.get(neighbor.id), neighbor.distance))
-                    .filter(sr -> sr.item() != null)
+                    .map(neighbor -> new SearchResult(neighbor.id, neighbor.distance))
                     .collect(Collectors.toList());
-
         } finally {
             lock.readLock().unlock();
         }
     }
 
     @Override
-    public Optional<Item<FloatVector, P>> get(long id) {
-        lock.readLock().lock(); // FIX: Use read lock for consistent reads
+    public Optional<List<FloatVector>> get(long id) {
+        lock.readLock().lock();
         try {
             Node node = nodes.get(id);
             if (node != null && !node.deleted) {
-                return Optional.ofNullable(itemMap.get(id));
+                return Optional.ofNullable(vectorMap.get(id));
             }
             return Optional.empty();
         } finally {
@@ -221,9 +188,8 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
 
     @Override
     public int size() {
-        lock.readLock().lock(); // FIX: Use read lock for consistent reads
+        lock.readLock().lock();
         try {
-            // Count only non-deleted nodes for an accurate size.
             return (int) nodes.values().stream().filter(n -> !n.deleted).count();
         } finally {
             lock.readLock().unlock();
@@ -231,7 +197,7 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
     }
 
     @Override
-    public MultiVectorDistance<FloatVector> getDistance() {
+    public MultiVectorDistance getDistance() {
         return multiVectorDistance;
     }
 
@@ -249,7 +215,7 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
     public void clear() {
         lock.writeLock().lock();
         try {
-            itemMap.clear();
+            vectorMap.clear();
             nodes.clear();
             entryPoint = null;
         } finally {
@@ -262,27 +228,23 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
         lock.writeLock().lock();
         try {
             if (entryPoint == null) {
-                return; // Nothing to do
+                return;
             }
-            // Get a list of all items that are not soft-deleted
-            List<Item<FloatVector, P>> liveItems =
+            Map<Long, List<FloatVector>> liveItems =
                     nodes.values().stream()
                             .filter(node -> !node.deleted)
-                            .map(node -> itemMap.get(node.id))
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList());
+                            .map(node -> Map.entry(node.id, vectorMap.get(node.id)))
+                            .filter(entry -> entry.getValue() != null)
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-            // Clear the index completely
             clear();
-
-            // Re-add all live items. This rebuilds the graph from scratch.
             addAll(liveItems);
         } finally {
             lock.writeLock().unlock();
         }
     }
 
-    private Node findEntryPointForLevel(Node entry, Item<FloatVector, P> query, int targetLevel) {
+    private Node findEntryPointForLevel(Node entry, List<FloatVector> query, int targetLevel) {
         Node nearestNode = entry;
         for (int l = getLevel(entry); l > targetLevel; l--) {
             PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, query, 1, l);
@@ -295,7 +257,7 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
     }
 
     private PriorityQueue<Neighbor> searchLayer(
-            Node entry, Item<FloatVector, P> query, int ef, int level) {
+            Node entry, List<FloatVector> query, int ef, int level) {
         PriorityQueue<Neighbor> results = new PriorityQueue<>(Collections.reverseOrder());
         PriorityQueue<Neighbor> candidates = new PriorityQueue<>();
         Set<Long> visited = new HashSet<>();
@@ -312,11 +274,8 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
 
         while (!candidates.isEmpty()) {
             Neighbor candidate = candidates.poll();
-            if (results.size() >= ef) {
-                assert results.peek() != null;
-                if (candidate.distance > results.peek().distance) {
-                    break;
-                }
+            if (results.size() >= ef && candidate.distance > results.peek().distance) {
+                break;
             }
 
             Node node = nodes.get(candidate.id);
@@ -329,8 +288,7 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
                     Node neighborNode = nodes.get(neighborId);
                     if (neighborNode != null && !neighborNode.deleted) {
                         double dist = distance(query, neighborId);
-                        if (results.size() < ef
-                                || dist < Objects.requireNonNull(results.peek()).distance) {
+                        if (results.size() < ef || dist < results.peek().distance) {
                             Neighbor newNeighbor = new Neighbor(neighborId, dist);
                             candidates.add(newNeighbor);
                             results.add(newNeighbor);
@@ -353,17 +311,17 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
         return Collections.max(node.connections.keySet());
     }
 
-    private double distance(Item<FloatVector, P> item1, long nodeId2) {
-        Item<FloatVector, P> item2 = itemMap.get(nodeId2);
-        if (item1 == null || item2 == null) return Double.MAX_VALUE;
-        return multiVectorDistance.compute(item1, item2);
+    private double distance(List<FloatVector> vectors, long nodeId2) {
+        List<FloatVector> vectors2 = vectorMap.get(nodeId2);
+        if (vectors2 == null) return Double.MAX_VALUE;
+        return multiVectorDistance.compute(vectors, vectors2);
     }
 
     private double distance(long nodeId1, long nodeId2) {
-        Item<FloatVector, P> item1 = itemMap.get(nodeId1);
-        Item<FloatVector, P> item2 = itemMap.get(nodeId2);
-        if (item1 == null || item2 == null) return Double.MAX_VALUE;
-        return multiVectorDistance.compute(item1, item2);
+        List<FloatVector> vectors1 = vectorMap.get(nodeId1);
+        List<FloatVector> vectors2 = vectorMap.get(nodeId2);
+        if (vectors1 == null || vectors2 == null) return Double.MAX_VALUE;
+        return multiVectorDistance.compute(vectors1, vectors2);
     }
 
     private List<Long> selectNeighbors(PriorityQueue<Neighbor> candidates, int count) {
@@ -419,17 +377,12 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
         }
     }
 
-    public static class Builder<P> {
-        private final MultiVectorDistance<FloatVector> multiVectorDistance;
+    public static class Builder {
+        private MultiVectorDistance multiVectorDistance;
         private int m = 16;
         private int efConstruction = 200;
 
-        public Builder(MultiVectorDistance<FloatVector> distance) {
-            this.multiVectorDistance =
-                    Objects.requireNonNull(distance, "MultiVectorDistance cannot be null.");
-        }
-
-        public Builder<P> withM(int m) {
+        public Builder withM(int m) {
             if (m <= 0) {
                 throw new IllegalArgumentException("M must be positive.");
             }
@@ -437,7 +390,7 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
             return this;
         }
 
-        public Builder<P> withEfConstruction(int efConstruction) {
+        public Builder withEfConstruction(int efConstruction) {
             if (efConstruction <= 0) {
                 throw new IllegalArgumentException("efConstruction must be positive.");
             }
@@ -445,8 +398,40 @@ public final class MultiVectorHNSW<P> implements Index<FloatVector, P>, Serializ
             return this;
         }
 
-        public MultiVectorHNSW<P> build() {
-            return new MultiVectorHNSW<>(this);
+        public WeightedAverageDistanceBuilder withWeightedAverageDistance() {
+            return new WeightedAverageDistanceBuilder(this);
+        }
+
+        public MultiVectorHNSW build() {
+            Objects.requireNonNull(multiVectorDistance, "A distance function must be configured.");
+            return new MultiVectorHNSW(this);
+        }
+
+        public static class WeightedAverageDistanceBuilder {
+            private final Builder parentBuilder;
+            private final List<Distance<FloatVector>> distances = new ArrayList<>();
+            private final List<Float> weights = new ArrayList<>();
+
+            WeightedAverageDistanceBuilder(Builder parentBuilder) {
+                this.parentBuilder = parentBuilder;
+            }
+
+            public WeightedAverageDistanceBuilder addDistance(
+                    Distance<FloatVector> distance, float weight) {
+                this.distances.add(distance);
+                this.weights.add(weight);
+                return this;
+            }
+
+            public Builder and() {
+                float[] weightsArray = new float[weights.size()];
+                for (int i = 0; i < weights.size(); i++) {
+                    weightsArray[i] = weights.get(i);
+                }
+                this.parentBuilder.multiVectorDistance =
+                        new WeightedAverageDistance(distances, weightsArray);
+                return this.parentBuilder;
+            }
         }
     }
 }

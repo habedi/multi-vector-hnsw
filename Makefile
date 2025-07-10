@@ -53,4 +53,8 @@ setup-hooks: ## Set up pre-commit hooks
 
 test-hooks: ## Test pre-commit hooks on all files
 	@echo "Testing pre-commit hooks..."
-	@./scripts/test-pre-commit.sh
+	@./scripts/test_precommit_hooks.sh
+
+bench-data: ## Download and prepare benchmark datasets
+	@echo "Downloading and preparing benchmark datasets..."
+	@./scripts/create_benchmark_datasets.sh

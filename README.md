@@ -1,6 +1,6 @@
 <div align="center">
   <picture>
-    <img alt="Multi-Vector HNSW Logo" src="logo.svg" height="30%" width="30%">
+    <img alt="Multi-Vector HNSW Logo" src="logo.svg" height="25%" width="25%">
   </picture>
 <br>
 
@@ -19,13 +19,18 @@ A Java implementation of HNSW with multi-vector search support
 
 ---
 
-Multi-vector HNSW is a Java library that provides an implementation of
-the Hierarchical Navigable Small World (HNSW) algorithm with support for indexing and searching of multi-vector data.
-It allows you to index objects represented by multiple high-dimensional vectors and perform approximate nearest neighbor searches efficiently.
+Multi-Vector HNSW is a Java library that provides an implementation of
+the [Hierarchical Navigable Small World (HNSW)](https://arxiv.org/abs/1603.09320) algorithm with support for indexing of
+multi-vector data.
+It allows users to index objects represented by multiple high-dimensional vectors and perform fast approximate nearest neighbor
+searches using various distances like Euclidean, Cosine, and Dot Product.
+
+### Why Multi-Vector HNSW?
 
 In many real-world applications, objects can be represented by multiple vectors, such as images with multiple feature sets
 or documents with multiple embeddings for different parts of the text.
-
+A normal HNSW implementation typically supports indexing and searching for objects represented by a single vector.
+This library aims to help users overcome this limitation by providing a flexible and efficient way to handle multi-vector data.
 
 ### Features
 
@@ -48,6 +53,10 @@ To be added.
 
 Contributions are welcome!
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+### Logo
+
+Bird claw logo courtesy of [SVG Repo](https://www.svgrepo.com/svg/499015/bird-claw).
 
 ### License
 

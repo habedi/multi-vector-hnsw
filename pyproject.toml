@@ -1,7 +1,7 @@
 [project]
 name = "multi-vector-hnsw"
 version = "0.1.0"
-description = "Python environment for multi-vector HNSW"
+description = "Python environment for the Multi-Vector HNSW library"
 readme = "README.md"
 license = { text = "MIT OR Apache-2.0" }
 authors = [
