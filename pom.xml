@@ -117,7 +117,7 @@
         <version>${maven.surefire.plugin.version}</version>
         <configuration>
           <argLine>
-            --add-modules jdk.incubator.vector --add-opens
+            ${argLine} --add-modules jdk.incubator.vector --add-opens
             org.apache.logging.log4j.core/org.apache.logging.log4j.core.config.plugins=org.apache.logging.log4j.core
             --add-opens
             org.apache.logging.log4j.core/org.apache.logging.log4j.core.config.plugins.util=org.apache.logging.log4j.core
@@ -181,6 +181,25 @@
             <phase>validate</phase>
             <goals>
               <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco.maven.plugin.version}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
             </goals>
           </execution>
         </executions>

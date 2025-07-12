@@ -35,7 +35,7 @@ publish: ## Deploys the release artifacts to Maven Central
 
 test: ## Run tests (e.g., make test MV_HNSW_LOG_LEVEL=debug)
 	@echo "Running tests with log level: $(MV_HNSW_LOG_LEVEL)..."
-	@$(MVN) -B test -Dmv.hnsw.log.level=$(MV_HNSW_LOG_LEVEL)
+	@$(MVN) -B verify -Dmv.hnsw.log.level=$(MV_HNSW_LOG_LEVEL)
 
 format: ## Format Java source files
 	@echo "Formatting source code..."
