@@ -3,37 +3,26 @@ package io.github.habedi.mvhnsw.common;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
+import jdk.incubator.vector.VectorOperators;
+import jdk.incubator.vector.VectorSpecies;
 
-/**
- * An immutable, serializable implementation of a {@link Vector} using a primitive float array for
- * efficiency.
- */
 public final class FloatVector implements Vector<Float>, Serializable {
 
     @Serial private static final long serialVersionUID = 1L;
 
+    private static final VectorSpecies<Float> SPECIES =
+            jdk.incubator.vector.FloatVector.SPECIES_PREFERRED;
+
     private final float[] data;
     private transient volatile double norm = -1;
 
-    /**
-     * Constructs a FloatVector from a float array. The input array is cloned to maintain
-     * immutability.
-     *
-     * @param data The float array to create the vector from. Cannot be null or empty.
-     */
     public FloatVector(float[] data) {
         if (data == null || data.length == 0) {
             throw new IllegalArgumentException("Vector data cannot be null or empty.");
         }
-        this.data = data.clone(); // FIX: Clone array to guarantee immutability
+        this.data = data.clone();
     }
 
-    /**
-     * Static factory method for creating a FloatVector from a varargs float array.
-     *
-     * @param data The float values.
-     * @return a new FloatVector.
-     */
     public static FloatVector of(float... data) {
         return new FloatVector(data);
     }
@@ -48,12 +37,6 @@ public final class FloatVector implements Vector<Float>, Serializable {
         return data[i];
     }
 
-    /**
-     * Gets the primitive float element at the specified index.
-     *
-     * @param i the index of the element to return.
-     * @return the primitive float at the specified position.
-     */
     public float getPrimitive(int i) {
         return data[i];
     }
@@ -67,21 +50,16 @@ public final class FloatVector implements Vector<Float>, Serializable {
         return boxed;
     }
 
-    /**
-     * Returns a clone of the underlying primitive float array.
-     *
-     * @return a clone of the internal data array.
-     */
     public float[] toPrimitiveArray() {
         return data.clone();
     }
 
     @Override
     public Vector<Float> add(Vector<Float> other) {
-        if (!(other instanceof FloatVector)) {
-            throw new UnsupportedOperationException("Addition with non-FloatVector not supported.");
+        if (other instanceof FloatVector fv) {
+            return add(fv);
         }
-        return add((FloatVector) other);
+        throw new UnsupportedOperationException("Addition with non-FloatVector not supported.");
     }
 
     public FloatVector add(FloatVector other) {
@@ -97,11 +75,11 @@ public final class FloatVector implements Vector<Float>, Serializable {
 
     @Override
     public Vector<Float> mul(Vector<Float> other) {
-        if (!(other instanceof FloatVector)) {
-            throw new UnsupportedOperationException(
-                    "Multiplication with non-FloatVector not supported.");
+        if (other instanceof FloatVector fv) {
+            return mul(fv);
         }
-        return mul((FloatVector) other);
+        throw new UnsupportedOperationException(
+                "Multiplication with non-FloatVector not supported.");
     }
 
     public FloatVector mul(FloatVector other) {
@@ -117,37 +95,55 @@ public final class FloatVector implements Vector<Float>, Serializable {
 
     @Override
     public double dot(Vector<Float> other) {
-        if (!(other instanceof FloatVector)) {
-            throw new UnsupportedOperationException(
-                    "Dot product with non-FloatVector not supported.");
+        if (other instanceof FloatVector fv) {
+            return dot(fv);
         }
-        return dot((FloatVector) other);
+        throw new UnsupportedOperationException("Dot product with non-FloatVector not supported.");
     }
 
     public double dot(FloatVector other) {
         if (this.length() != other.length()) {
             throw new IllegalArgumentException("Vector lengths must be equal for dot product.");
         }
+
+        float[] a = this.data;
+        float[] b = other.data;
         double sum = 0.0;
-        for (int i = 0; i < data.length; i++) {
-            sum += (double) this.data[i] * other.data[i];
+        int bound = SPECIES.loopBound(a.length);
+        int i = 0;
+
+        for (; i < bound; i += SPECIES.length()) {
+            var va = jdk.incubator.vector.FloatVector.fromArray(SPECIES, a, i);
+            var vb = jdk.incubator.vector.FloatVector.fromArray(SPECIES, b, i);
+            sum += va.mul(vb).reduceLanes(VectorOperators.ADD);
+        }
+
+        for (; i < a.length; i++) {
+            sum += (double) a[i] * b[i];
         }
         return sum;
     }
 
     @Override
-    public double norm() {
-        if (norm < 0) {
-            synchronized (this) {
-                if (norm < 0) {
-                    double sumSq = 0.0;
-                    for (float v : data) {
-                        sumSq += (double) v * v;
-                    }
-                    this.norm = Math.sqrt(sumSq);
-                }
-            }
+    public synchronized double norm() {
+        if (norm >= 0) {
+            return norm;
         }
+
+        double sumSq = 0.0;
+        int bound = SPECIES.loopBound(data.length);
+        int i = 0;
+
+        for (; i < bound; i += SPECIES.length()) {
+            var va = jdk.incubator.vector.FloatVector.fromArray(SPECIES, data, i);
+            sumSq += va.mul(va).reduceLanes(VectorOperators.ADD);
+        }
+
+        for (; i < data.length; i++) {
+            sumSq += (double) data[i] * data[i];
+        }
+
+        this.norm = Math.sqrt(sumSq);
         return this.norm;
     }
 
@@ -156,7 +152,7 @@ public final class FloatVector implements Vector<Float>, Serializable {
         double dot = dot(other);
         double norms = this.norm() * other.norm();
         if (norms == 0.0) {
-            return 0.0; // Conventionally, cosine is 0 if either vector is the zero vector.
+            return 0.0;
         }
         return dot / norms;
     }

@@ -54,9 +54,12 @@ public final class MultiVectorHNSW implements Index, Serializable {
     public void add(long id, List<FloatVector> vectors) {
         lock.writeLock().lock();
         try {
-            if (vectorMap.containsKey(id)) {
-                update(id, vectors);
-                return;
+            Node existingNode = nodes.get(id);
+            if (existingNode != null && !existingNode.deleted) {
+                throw new IllegalArgumentException(
+                        "Item with ID "
+                                + id
+                                + " already exists. Please remove it first to update.");
             }
 
             int level = assignLevel();
@@ -99,20 +102,6 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
 
     @Override
-    public void update(long id, List<FloatVector> vectors) {
-        lock.writeLock().lock();
-        try {
-            if (!vectorMap.containsKey(id)) {
-                throw new NoSuchElementException("Item with ID " + id + " not found for update.");
-            }
-            remove(id);
-            add(id, vectors);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    @Override
     public boolean remove(long id) {
         lock.writeLock().lock();
         try {
@@ -130,22 +119,6 @@ public final class MultiVectorHNSW implements Index, Serializable {
     @Override
     public void addAll(Map<Long, List<FloatVector>> items) {
         items.forEach(this::add);
-    }
-
-    @Override
-    public void updateAll(Map<Long, List<FloatVector>> items) {
-        items.forEach(this::update);
-    }
-
-    @Override
-    public int removeAll(Collection<Long> ids) {
-        int count = 0;
-        for (long id : ids) {
-            if (remove(id)) {
-                count++;
-            }
-        }
-        return count;
     }
 
     @Override
@@ -191,6 +164,19 @@ public final class MultiVectorHNSW implements Index, Serializable {
         lock.readLock().lock();
         try {
             return (int) nodes.values().stream().filter(n -> !n.deleted).count();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    @Override
+    public Set<Long> keySet() {
+        lock.readLock().lock();
+        try {
+            return nodes.values().stream()
+                    .filter(node -> !node.deleted)
+                    .map(node -> node.id)
+                    .collect(Collectors.toSet());
         } finally {
             lock.readLock().unlock();
         }
@@ -398,6 +384,11 @@ public final class MultiVectorHNSW implements Index, Serializable {
             return this;
         }
 
+        public Builder withDistance(MultiVectorDistance distance) {
+            this.multiVectorDistance = distance;
+            return this;
+        }
+
         public WeightedAverageDistanceBuilder withWeightedAverageDistance() {
             return new WeightedAverageDistanceBuilder(this);
         }
@@ -420,6 +411,15 @@ public final class MultiVectorHNSW implements Index, Serializable {
                     Distance<FloatVector> distance, float weight) {
                 this.distances.add(distance);
                 this.weights.add(weight);
+                return this;
+            }
+
+            public WeightedAverageDistanceBuilder addDistanceIf(
+                    boolean condition, Distance<FloatVector> distance, float weight) {
+                if (condition) {
+                    this.distances.add(distance);
+                    this.weights.add(weight);
+                }
                 return this;
             }
 

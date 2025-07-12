@@ -23,13 +23,37 @@ public class WeightedAverageDistance implements MultiVectorDistance, Serializabl
                     "The number of distances must match the number of weights.");
         }
         this.distances = distances;
-        this.weights = weights;
+        this.weights = normalize(weights);
+    }
+
+    private float[] normalize(float[] w) {
+        double sum = 0.0;
+        for (float weight : w) {
+            if (weight < 0) {
+                throw new IllegalArgumentException("Weights must be non-negative.");
+            }
+            sum += weight;
+        }
+
+        if (sum == 0.0) {
+            throw new IllegalArgumentException("Sum of weights cannot be zero.");
+        }
+
+        float[] normalized = new float[w.length];
+        for (int i = 0; i < w.length; i++) {
+            normalized[i] = (float) (w[i] / sum);
+        }
+        return normalized;
     }
 
     @Override
     public double compute(List<FloatVector> vectors1, List<FloatVector> vectors2) {
         if (vectors1.size() != vectors2.size()) {
             throw new IllegalArgumentException("Vector list sizes must match.");
+        }
+        if (vectors1.size() != distances.size()) {
+            throw new IllegalArgumentException(
+                    "Number of vectors must match the number of distance functions.");
         }
 
         double totalDistance = 0.0;

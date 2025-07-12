@@ -63,14 +63,8 @@ class FloatVectorTest {
         FloatVector vector = new FloatVector(original);
         float[] array = vector.toPrimitiveArray();
 
-        // Check that it's a clone, not the same array
         assertNotSame(original, array);
-
-        // Check values
-        assertEquals(3, array.length);
-        assertEquals(1.0f, array[0]);
-        assertEquals(2.0f, array[1]);
-        assertEquals(3.0f, array[2]);
+        assertArrayEquals(original, array);
     }
 
     @Test
@@ -79,10 +73,7 @@ class FloatVectorTest {
         FloatVector v2 = new FloatVector(new float[] {4.0f, 5.0f, 6.0f});
         FloatVector result = v1.add(v2);
 
-        assertEquals(3, result.length());
-        assertEquals(5.0f, result.get(0));
-        assertEquals(7.0f, result.get(1));
-        assertEquals(9.0f, result.get(2));
+        assertArrayEquals(new float[] {5.0f, 7.0f, 9.0f}, result.toPrimitiveArray());
     }
 
     @Test
@@ -99,10 +90,7 @@ class FloatVectorTest {
         FloatVector v2 = new FloatVector(new float[] {4.0f, 5.0f, 6.0f});
         FloatVector result = v1.mul(v2);
 
-        assertEquals(3, result.length());
-        assertEquals(4.0f, result.get(0));
-        assertEquals(10.0f, result.get(1));
-        assertEquals(18.0f, result.get(2));
+        assertArrayEquals(new float[] {4.0f, 10.0f, 18.0f}, result.toPrimitiveArray());
     }
 
     @Test
@@ -131,12 +119,17 @@ class FloatVectorTest {
     }
 
     @Test
+    void testDotProductWithSingleElement() {
+        FloatVector v1 = FloatVector.of(5.0f);
+        FloatVector v2 = FloatVector.of(10.0f);
+        assertEquals(50.0, v1.dot(v2), 0.0001);
+    }
+
+    @Test
     void testNorm() {
         FloatVector v = new FloatVector(new float[] {3.0f, 4.0f});
         assertEquals(5.0, v.norm(), 0.0001);
-
-        // Test caching - calling norm() again should use cached value
-        assertEquals(5.0, v.norm(), 0.0001);
+        assertEquals(5.0, v.norm(), 0.0001); // Test caching
     }
 
     @Test
@@ -146,7 +139,7 @@ class FloatVectorTest {
         assertEquals(0.0, v1.cosine(v2), 0.0001); // Orthogonal vectors
 
         FloatVector v3 = new FloatVector(new float[] {1.0f, 1.0f});
-        FloatVector v4 = new FloatVector(new float[] {1.0f, 1.0f});
+        FloatVector v4 = new FloatVector(new float[] {2.0f, 2.0f});
         assertEquals(1.0, v3.cosine(v4), 0.0001); // Same direction
 
         FloatVector v5 = new FloatVector(new float[] {1.0f, 1.0f});
@@ -159,6 +152,7 @@ class FloatVectorTest {
         FloatVector v1 = new FloatVector(new float[] {0.0f, 0.0f});
         FloatVector v2 = new FloatVector(new float[] {1.0f, 1.0f});
         assertEquals(0.0, v1.cosine(v2), 0.0001);
+        assertEquals(0.0, v2.cosine(v1), 0.0001);
     }
 
     @Test
@@ -169,8 +163,8 @@ class FloatVectorTest {
 
         assertEquals(v1, v2);
         assertNotEquals(v1, v3);
-        assertNotEquals(v1, null);
-        assertNotEquals(v1, "not a vector");
+        assertNotEquals(null, v1);
+        assertNotEquals("not a vector", v1);
     }
 
     @Test
@@ -186,7 +180,7 @@ class FloatVectorTest {
         FloatVector v = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
         String str = v.toString();
 
-        assertTrue(str.contains("FloatVector"));
+        assertTrue(str.startsWith("FloatVector"));
         assertTrue(str.contains("[1.0, 2.0, 3.0]"));
     }
 }

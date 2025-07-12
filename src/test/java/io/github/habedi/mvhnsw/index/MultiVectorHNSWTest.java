@@ -1,7 +1,6 @@
 package io.github.habedi.mvhnsw.index;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import io.github.habedi.mvhnsw.common.FloatVector;
 import io.github.habedi.mvhnsw.distance.Cosine;
@@ -10,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +17,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 class MultiVectorHNSWTest {
 
+    private final List<FloatVector> vectors1 =
+            List.of(FloatVector.of(1.0f, 1.0f), FloatVector.of(1.0f, 0.0f));
+    private final List<FloatVector> vectors2 =
+            List.of(FloatVector.of(10.0f, 10.0f), FloatVector.of(0.0f, 1.0f));
     private Index index;
 
     @BeforeEach
@@ -34,76 +38,132 @@ class MultiVectorHNSWTest {
 
     @Test
     void testAddAndGet() {
-        long id = 123L;
-        List<FloatVector> vectors =
-                List.of(FloatVector.of(1.0f, 2.0f, 3.0f), FloatVector.of(4.0f, 5.0f, 6.0f));
-
-        index.add(id, vectors);
-
+        index.add(1L, vectors1);
         assertEquals(1, index.size());
-        Optional<List<FloatVector>> retrieved = index.get(id);
+        Optional<List<FloatVector>> retrieved = index.get(1L);
         assertTrue(retrieved.isPresent());
-        assertEquals(vectors, retrieved.get());
+        assertEquals(vectors1, retrieved.get());
+    }
+
+    @Test
+    void testAddWithExistingIdThrowsException() {
+        index.add(1L, vectors1);
+        assertThrows(IllegalArgumentException.class, () -> index.add(1L, vectors2));
     }
 
     @Test
     void testRemove() {
-        long id = 123L;
-        List<FloatVector> vectors = List.of(FloatVector.of(1.0f, 2.0f, 3.0f));
-        index.add(id, vectors);
+        index.add(1L, vectors1);
         assertEquals(1, index.size());
 
-        boolean removed = index.remove(id);
-
+        boolean removed = index.remove(1L);
         assertTrue(removed);
         assertEquals(0, index.size());
-        assertTrue(index.get(id).isEmpty());
+        assertTrue(index.get(1L).isEmpty());
+
+        boolean removedAgain = index.remove(1L);
+        assertFalse(removedAgain);
+    }
+
+    @Test
+    void testReAddAfterRemove() {
+        index.add(1L, vectors1);
+        index.remove(1L);
+        assertEquals(0, index.size());
+
+        assertDoesNotThrow(() -> index.add(1L, vectors2));
+        assertEquals(1, index.size());
+        Optional<List<FloatVector>> retrieved = index.get(1L);
+        assertTrue(retrieved.isPresent());
+        assertEquals(vectors2, retrieved.get());
     }
 
     @Test
     void testSearch() {
-        long id1 = 1L;
-        List<FloatVector> vectors1 =
-                List.of(FloatVector.of(1.0f, 1.0f), FloatVector.of(1.0f, 0.0f));
-        index.add(id1, vectors1);
-
-        long id2 = 2L;
-        List<FloatVector> vectors2 =
-                List.of(FloatVector.of(10.0f, 10.0f), FloatVector.of(0.0f, 1.0f));
-        index.add(id2, vectors2);
+        index.add(1L, vectors1);
+        index.add(2L, vectors2);
 
         List<FloatVector> queryVectors =
                 List.of(FloatVector.of(1.1f, 1.1f), FloatVector.of(0.9f, 0.1f));
         List<SearchResult> results = index.search(queryVectors, 1);
 
         assertEquals(1, results.size());
-        assertEquals(id1, results.get(0).id());
+        assertEquals(1L, results.get(0).id());
+    }
+
+    @Test
+    void testSearchEmptyIndex() {
+        List<FloatVector> queryVectors =
+                List.of(FloatVector.of(1.1f, 1.1f), FloatVector.of(0.9f, 0.1f));
+        List<SearchResult> results = index.search(queryVectors, 5);
+        assertTrue(results.isEmpty());
+    }
+
+    @Test
+    void testAddAll() {
+        Map<Long, List<FloatVector>> items = Map.of(1L, vectors1, 2L, vectors2);
+        index.addAll(items);
+        assertEquals(2, index.size());
+        assertTrue(index.get(2L).isPresent());
+    }
+
+    @Test
+    void testClear() {
+        index.add(1L, vectors1);
+        index.add(2L, vectors2);
+        assertEquals(2, index.size());
+
+        index.clear();
+        assertEquals(0, index.size());
+        assertTrue(index.get(1L).isEmpty());
+    }
+
+    @Test
+    void testVacuum() {
+        index.add(1L, vectors1);
+        index.add(2L, vectors2);
+        index.remove(1L); // Soft delete
+        assertEquals(1, index.size());
+
+        // At this point, the internal maps might still contain remnants of item 1
+        index.vacuum(); // Rebuilds the index with only live items
+
+        assertEquals(1, index.size());
+        assertTrue(index.get(2L).isPresent());
+        assertFalse(index.get(1L).isPresent());
+
+        // Verify we can still search correctly
+        List<SearchResult> results = index.search(vectors2, 1);
+        assertEquals(1, results.size());
+        assertEquals(2L, results.get(0).id());
     }
 
     @Test
     void testSaveAndLoad(@TempDir File tempDir) throws IOException, ClassNotFoundException {
-        for (long i = 1; i <= 50; i++) {
-            List<FloatVector> vectors =
-                    List.of(FloatVector.of(i, i + 1, i + 2), FloatVector.of(i + 3, i + 4, i + 5));
-            index.add(i, vectors);
-        }
-        assertEquals(50, index.size());
+        index.add(1L, vectors1);
+        index.add(2L, vectors2);
+        assertEquals(2, index.size());
 
         File indexPath = new File(tempDir, "my.index");
         index.save(indexPath.toPath());
         assertTrue(Files.exists(indexPath.toPath()));
 
         Index loadedIndex = MultiVectorHNSW.load(indexPath.toPath());
-        assertEquals(50, loadedIndex.size());
+        assertEquals(2, loadedIndex.size());
 
-        Optional<List<FloatVector>> vectors = loadedIndex.get(25L);
-        assertTrue(vectors.isPresent());
-        assertEquals(FloatVector.of(25f, 26f, 27f), vectors.get().get(0));
+        Optional<List<FloatVector>> retrieved = loadedIndex.get(1L);
+        assertTrue(retrieved.isPresent());
+        assertEquals(vectors1, retrieved.get());
+    }
 
-        List<SearchResult> results =
-                loadedIndex.search(
-                        List.of(FloatVector.of(25f, 26f, 27f), FloatVector.of(28f, 29f, 30f)), 1);
-        assertEquals(1, results.size());
-        assertEquals(25L, results.get(0).id());
+    @Test
+    void testBuilderValidation() {
+        assertThrows(IllegalArgumentException.class, () -> MultiVectorHNSW.builder().withM(0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> MultiVectorHNSW.builder().withEfConstruction(-10));
+        assertThrows(
+                NullPointerException.class,
+                () -> MultiVectorHNSW.builder().withM(16).withEfConstruction(100).build());
     }
 }

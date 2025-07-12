@@ -15,9 +15,9 @@ digraph HasaMindMapTree {
     penwidth = 1.5,
     fillcolor = "white",
     margin = "0.05,0.03",
-    width=1.1,
-    height=0.3,
-    fixedsize=false
+    width = 1.1,
+    height = 0.3,
+    fixedsize = false
     ]
 
     edge [
@@ -29,11 +29,11 @@ digraph HasaMindMapTree {
     hasa [label = "Hasa", fillcolor = "#A0E5A0", style = "filled,bold"]
 
     // Top-level categories (non-leaf, dashed border)
-    similarity [label="Similarity", fillcolor="#5DADE2", style="filled,dashed"]
-    distance   [label="Distance", fillcolor="#F1948A", style="filled,dashed"]
-    alignment  [label="Alignment", fillcolor="#AF7AC5", style="filled,dashed"]
-    search     [label="Search", fillcolor="#F9E79F", style="filled,dashed"]
-    misc       [label="Misc", fillcolor="#76D7C4", style="filled,dashed"]
+    similarity [label = "Similarity", fillcolor = "#5DADE2", style = "filled,dashed"]
+    distance [label = "Distance", fillcolor = "#F1948A", style = "filled,dashed"]
+    alignment [label = "Alignment", fillcolor = "#AF7AC5", style = "filled,dashed"]
+    search [label = "Search", fillcolor = "#F9E79F", style = "filled,dashed"]
+    misc [label = "Misc", fillcolor = "#76D7C4", style = "filled,dashed"]
 
     hasa -> similarity
     hasa -> distance
@@ -66,8 +66,8 @@ digraph HasaMindMapTree {
 
     // Search subcategories
     search -> { search_lexical search_semantic }
-    search_lexical [label = "Lexical", fillcolor = "#FCF3CF", style="filled,dashed"]
-    search_semantic [label = "Semantic", fillcolor = "#FCF3CF", style="filled,dashed"]
+    search_lexical [label = "Lexical", fillcolor = "#FCF3CF", style = "filled,dashed"]
+    search_semantic [label = "Semantic", fillcolor = "#FCF3CF", style = "filled,dashed"]
 
     search_lexical -> { rk bm kmp }
     rk [label = "Rabin-Karp", fillcolor = "#FEF9E7"]
@@ -79,12 +79,12 @@ digraph HasaMindMapTree {
 
     // Misc subcategories
     misc -> { misc_embed misc_eval }
-    misc_embed [label = "Embeddings", fillcolor = "#A9DFBF", style="filled,dashed"]
-    misc_eval  [label = "Evaluation", fillcolor = "#A9DFBF", style="filled,dashed"]
+    misc_embed [label = "Embeddings", fillcolor = "#A9DFBF", style = "filled,dashed"]
+    misc_eval [label = "Evaluation", fillcolor = "#A9DFBF", style = "filled,dashed"]
 
     misc_embed -> { embed_word embed_sent }
-    embed_word [label = "Word", fillcolor = "#D5F5E3", style="filled,dashed"]
-    embed_sent [label = "Sentence", fillcolor = "#D5F5E3", style="filled,dashed"]
+    embed_word [label = "Word", fillcolor = "#D5F5E3", style = "filled,dashed"]
+    embed_sent [label = "Sentence", fillcolor = "#D5F5E3", style = "filled,dashed"]
 
     embed_word -> { glove fasttext }
     glove [label = "GloVe", fillcolor = "#EBFCEA"]

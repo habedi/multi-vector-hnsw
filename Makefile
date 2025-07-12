@@ -58,3 +58,11 @@ test-hooks: ## Test pre-commit hooks on all files
 bench-data: ## Download and prepare benchmark datasets
 	@echo "Downloading and preparing benchmark datasets..."
 	@./scripts/create_benchmark_datasets.sh
+
+bench-jar: ## Build the benchmark JAR file
+	@echo "Building benchmark JAR file..."
+	@$(MVN) clean package -Pbenchmark
+
+bench-run: ## Run the benchmarks
+	@echo "Running benchmarks..."
+	@java -jar target/benchmarks.jar --dataset "se_ds_768"
