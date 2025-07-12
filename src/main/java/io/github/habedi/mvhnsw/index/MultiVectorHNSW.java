@@ -4,17 +4,34 @@ import io.github.habedi.mvhnsw.common.FloatVector;
 import io.github.habedi.mvhnsw.distance.Distance;
 import io.github.habedi.mvhnsw.distance.MultiVectorDistance;
 import io.github.habedi.mvhnsw.distance.WeightedAverageDistance;
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public final class MultiVectorHNSW implements Index, Serializable {
 
     @Serial private static final long serialVersionUID = 1L;
+    private static final Logger log = LogManager.getLogger(MultiVectorHNSW.class);
 
     private final MultiVectorDistance multiVectorDistance;
     private final int m;
@@ -35,6 +52,11 @@ public final class MultiVectorHNSW implements Index, Serializable {
         this.nodes = new ConcurrentHashMap<>();
         this.lock = new ReentrantReadWriteLock();
         this.entryPoint = null;
+        log.info(
+                "Initialized MultiVectorHNSW with M={}, efConstruction={}, distance={}",
+                this.m,
+                this.efConstruction,
+                this.multiVectorDistance.getClass().getSimpleName());
     }
 
     public static Builder builder() {
@@ -43,9 +65,11 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
     @SuppressWarnings("unchecked")
     public static MultiVectorHNSW load(Path path) throws IOException, ClassNotFoundException {
+        log.info("Loading index from {}", path);
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(path.toFile()))) {
             MultiVectorHNSW index = (MultiVectorHNSW) ois.readObject();
             index.lock = new ReentrantReadWriteLock();
+            log.info("Successfully loaded index with {} items.", index.size());
             return index;
         }
     }
@@ -63,6 +87,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
             }
 
             int level = assignLevel();
+            log.debug("Adding item {} at level {}", id, level);
             Node newNode = new Node(id, level);
             nodes.put(id, newNode);
             vectorMap.put(id, vectors);
@@ -95,6 +120,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
             if (level > getLevel(currentEntryPoint)) {
                 entryPoint = newNode;
+                log.debug("New entry point: Node {} at level {}", newNode.id, level);
             }
         } finally {
             lock.writeLock().unlock();
@@ -110,6 +136,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
                 return false;
             }
             node.deleted = true;
+            log.debug("Marked item {} for deletion", id);
             return true;
         } finally {
             lock.writeLock().unlock();
@@ -118,6 +145,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
     @Override
     public void addAll(Map<Long, List<FloatVector>> items) {
+        log.info("Adding {} items to the index.", items.size());
         items.forEach(this::add);
     }
 
@@ -189,9 +217,11 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
     @Override
     public void save(Path path) throws IOException {
+        log.info("Saving index with {} items to {}", size(), path);
         lock.readLock().lock();
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(path.toFile()))) {
             oos.writeObject(this);
+            log.info("Save complete.");
         } finally {
             lock.readLock().unlock();
         }
@@ -204,6 +234,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
             vectorMap.clear();
             nodes.clear();
             entryPoint = null;
+            log.info("Index cleared.");
         } finally {
             lock.writeLock().unlock();
         }
@@ -223,8 +254,10 @@ public final class MultiVectorHNSW implements Index, Serializable {
                             .filter(entry -> entry.getValue() != null)
                             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
+            log.info("Starting vacuum. Rebuilding index with {} live items.", liveItems.size());
             clear();
             addAll(liveItems);
+            log.info("Vacuum complete.");
         } finally {
             lock.writeLock().unlock();
         }
@@ -257,6 +290,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
         candidates.add(entryNeighbor);
         results.add(entryNeighbor);
         visited.add(entry.id);
+        log.trace("L{}: Start search at {}, dist={}", level, entry.id, entryDist);
 
         while (!candidates.isEmpty()) {
             Neighbor candidate = candidates.poll();
@@ -274,6 +308,12 @@ public final class MultiVectorHNSW implements Index, Serializable {
                     Node neighborNode = nodes.get(neighborId);
                     if (neighborNode != null && !neighborNode.deleted) {
                         double dist = distance(query, neighborId);
+                        log.trace(
+                                "L{}: Visiting neighbor {} of {}, dist={}",
+                                level,
+                                neighborId,
+                                candidate.id,
+                                dist);
                         if (results.size() < ef || dist < results.peek().distance) {
                             Neighbor newNeighbor = new Neighbor(neighborId, dist);
                             candidates.add(newNeighbor);
@@ -299,14 +339,18 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
     private double distance(List<FloatVector> vectors, long nodeId2) {
         List<FloatVector> vectors2 = vectorMap.get(nodeId2);
-        if (vectors2 == null) return Double.MAX_VALUE;
+        if (vectors2 == null) {
+            return Double.MAX_VALUE;
+        }
         return multiVectorDistance.compute(vectors, vectors2);
     }
 
     private double distance(long nodeId1, long nodeId2) {
         List<FloatVector> vectors1 = vectorMap.get(nodeId1);
         List<FloatVector> vectors2 = vectorMap.get(nodeId2);
-        if (vectors1 == null || vectors2 == null) return Double.MAX_VALUE;
+        if (vectors1 == null || vectors2 == null) {
+            return Double.MAX_VALUE;
+        }
         return multiVectorDistance.compute(vectors1, vectors2);
     }
 
@@ -323,6 +367,12 @@ public final class MultiVectorHNSW implements Index, Serializable {
         if (connections.size() <= m) {
             return;
         }
+        log.debug(
+                "Pruning connections for node {} at level {}. From {} to {}",
+                node.id,
+                level,
+                connections.size(),
+                m);
         PriorityQueue<Neighbor> neighbors = new PriorityQueue<>(connections.size());
         for (long neighborId : connections) {
             neighbors.add(new Neighbor(neighborId, distance(node.id, neighborId)));

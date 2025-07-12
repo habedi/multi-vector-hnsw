@@ -65,4 +65,4 @@ bench-jar: ## Build the benchmark JAR file
 
 bench-run: ## Run the benchmarks
 	@echo "Running benchmarks..."
-	@java -jar target/benchmarks.jar --dataset "se_ds_768"
+	@java -jar target/benchmarks.jar --dataset "se_cs_768"

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+  <Properties>
+    <!--
+      Reads the MV_HNSW_LOG environment variable.
+      Defaults to "off" if the variable is not set.
+    -->
+    <Property name="log-level-name">${env:MV_HNSW_LOG:-off}</Property>
+
+    <!--
+      Maps the user-friendly level name to a standard Log4j level.
+    -->
+    <Property name="log-level">
+      ${map:
+          ${log-level-name}
+      | normal=INFO
+      | debug=DEBUG
+      | off=OFF
+      | default=OFF
+      }
+    </Property>
+  </Properties>
+
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+    </Console>
+  </Appenders>
+
+  <Loggers>
+    <!-- Set the logging level for your library's package -->
+    <Logger name="io.github.habedi.mvhnsw" level="${log-level}" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+
+    <!-- Root logger to catch all other logs, set to a higher level to reduce noise -->
+    <Root level="WARN">
+      <AppenderRef ref="Console"/>
+    </Root>
+  </Loggers>
+</Configuration>
