@@ -34,7 +34,6 @@ for file in "${STACK_EXCHANGE_FILES[@]}"; do
         --dataset_name "$DATASET_REPO" \
         --data_file "$file" \
         --id_column "id" \
-        --sample_size $SAMPLE_SIZE \
         --k $K_VALUE \
         --output_dir "$OUTPUT_DIR"
 done

@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.github.habedi.mvhnsw.common.FloatVector;
 import io.github.habedi.mvhnsw.distance.Cosine;
-import io.github.habedi.mvhnsw.distance.Euclidean;
+import io.github.habedi.mvhnsw.distance.SquaredEuclidean;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,7 +30,7 @@ class MultiVectorHNSWTest {
             .withM(10)
             .withEfConstruction(100)
             .withWeightedAverageDistance()
-            .addDistance(new Euclidean(), 0.5f)
+            .addDistance(new SquaredEuclidean(), 0.5f)
             .addDistance(new Cosine(), 0.5f)
             .and()
             .build();

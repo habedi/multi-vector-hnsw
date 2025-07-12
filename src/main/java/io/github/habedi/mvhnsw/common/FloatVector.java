@@ -1,3 +1,4 @@
+// src/main/java/io/github/habedi/mvhnsw/common/FloatVector.java
 package io.github.habedi.mvhnsw.common;
 
 import java.io.Serial;
@@ -25,6 +26,19 @@ public final class FloatVector implements Vector<Float>, Serializable {
 
   public static FloatVector of(float... data) {
     return new FloatVector(data);
+  }
+
+  /**
+   * Provides direct access to the internal float array.
+   *
+   * <p><b>Warning:</b> This method is intended for performance-critical operations within the
+   * library only. The returned array should NOT be modified, as it would corrupt the vector's
+   * state.
+   *
+   * @return The raw internal float array.
+   */
+  public float[] getRawData() {
+    return data;
   }
 
   @Override
@@ -106,7 +120,7 @@ public final class FloatVector implements Vector<Float>, Serializable {
     }
 
     float[] a = this.data;
-    float[] b = other.data;
+    float[] b = other.getRawData();
     double sum = 0.0;
     int bound = SPECIES.loopBound(a.length);
     int i = 0;

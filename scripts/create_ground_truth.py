@@ -1,13 +1,14 @@
 import argparse
 import json
-import numpy as np
 import os
+
+import numpy as np
 from datasets import load_dataset
 from tqdm import tqdm
 
 
-def euclidean_distance(v1, v2):
-    return np.linalg.norm(v1 - v2)
+def squared_euclidean_distance(v1, v2):
+    return np.sum(np.square(v1 - v2))
 
 
 def cosine_distance(v1, v2):
@@ -22,6 +23,10 @@ def cosine_distance(v1, v2):
     return 1.0 - similarity
 
 
+def dot_product_distance(v1, v2):
+    return -np.dot(v1, v2)
+
+
 def calculate_aggregated_distance(emb1, emb2, weights, distance_func):
     total_dist = 0.0
     for i in range(len(weights)):
@@ -34,7 +39,6 @@ def validate_and_clean_data(dataset, id_column, embedding_column):
     clean_data = []
     expected_dim = None
 
-    # First pass to find a valid dimension
     for item in dataset:
         emb = item[embedding_column]
         if isinstance(emb, list) and emb and isinstance(emb[0], list) and emb[0]:
@@ -85,35 +89,46 @@ def find_ground_truth(clean_test_data, clean_train_data, k):
         test_id = test_item["id"]
         test_emb = np.array(test_item["embedding"])
 
-        euclidean_neighbors = []
+        sq_euc_neighbors = []
         cosine_neighbors = []
+        dot_prod_neighbors = []
 
         for i in range(len(train_ids)):
             train_id = train_ids[i]
             train_emb = train_embeddings[i]
 
-            dist_euc = calculate_aggregated_distance(test_emb, train_emb, weights,
-                                                     euclidean_distance)
-            dist_cos = calculate_aggregated_distance(test_emb, train_emb, weights, cosine_distance)
+            dist_sq_euc = calculate_aggregated_distance(
+                test_emb, train_emb, weights, squared_euclidean_distance)
+            dist_cos = calculate_aggregated_distance(
+                test_emb, train_emb, weights, cosine_distance)
+            dist_dot = calculate_aggregated_distance(
+                test_emb, train_emb, weights, dot_product_distance)
 
-            euclidean_neighbors.append({"id": train_id, "dist": dist_euc})
+            sq_euc_neighbors.append({"id": train_id, "dist": dist_sq_euc})
             cosine_neighbors.append({"id": train_id, "dist": dist_cos})
+            dot_prod_neighbors.append({"id": train_id, "dist": dist_dot})
 
-        euclidean_neighbors.sort(key=lambda x: x["dist"])
+        sq_euc_neighbors.sort(key=lambda x: x["dist"])
         cosine_neighbors.sort(key=lambda x: x["dist"])
+        dot_prod_neighbors.sort(key=lambda x: x["dist"])
 
-        top_k_euc = euclidean_neighbors[:k]
+        top_k_sq_euc = sq_euc_neighbors[:k]
         top_k_cos = cosine_neighbors[:k]
+        top_k_dot = dot_prod_neighbors[:k]
 
         ground_truth_results.append({
             "id": test_id,
-            f"top_{k}_euclidean": {
-                "ids": [n['id'] for n in top_k_euc],
-                "dists": [n['dist'] for n in top_k_euc]
+            f"top_{k}_squared_euclidean": {
+                "ids": [n['id'] for n in top_k_sq_euc],
+                "dists": [n['dist'] for n in top_k_sq_euc]
             },
             f"top_{k}_cosine": {
                 "ids": [n['id'] for n in top_k_cos],
                 "dists": [n['dist'] for n in top_k_cos]
+            },
+            f"top_{k}_dot_product": {
+                "ids": [n['id'] for n in top_k_dot],
+                "dists": [n['dist'] for n in top_k_dot]
             }
         })
 
@@ -125,8 +140,9 @@ def main(args):
     if args.sample_size:
         split = f"train[:{args.sample_size}]"
 
-    print(f"Loading dataset: {args.dataset_name}, data file: {args.data_file}, split:"
-          f" {split}, num samples: {args.sample_size or 'full'}")
+    print(
+        f"Loading dataset: {args.dataset_name}, data file: {args.data_file}, split:"
+        f" {split}, num samples: {args.sample_size or 'full'}")
     dataset = load_dataset(args.dataset_name, data_files=args.data_file, split=split)
 
     if len(dataset) < 10:
@@ -138,20 +154,13 @@ def main(args):
     print("Splitting dataset into 90% train and 10% test...")
     split_dataset = dataset.train_test_split(test_size=0.1, seed=42)
 
-    # --- Clean and prepare data ---
     clean_train_data = validate_and_clean_data(split_dataset["train"], args.id_column,
                                                args.embedding_column)
     clean_test_data = validate_and_clean_data(split_dataset["test"], args.id_column,
                                               args.embedding_column)
 
-    # --- Find Neighbors ---
-    ground_truth_data = find_ground_truth(
-        clean_test_data,
-        clean_train_data,
-        k=args.k
-    )
+    ground_truth_data = find_ground_truth(clean_test_data, clean_train_data, k=args.k)
 
-    # --- Create directories and save files ---
     dataset_folder_name = os.path.splitext(args.data_file)[0]
     full_output_dir = os.path.join(args.output_dir, dataset_folder_name)
     os.makedirs(full_output_dir, exist_ok=True)
@@ -180,7 +189,7 @@ if __name__ == "__main__":
     parser.add_argument("--embedding_column", type=str, default="embedding")
     parser.add_argument("--sample_size", type=int, default=None)
     parser.add_argument("--k", type=int, default=100)
-    parser.add_argument("--output_dir", type=str, default="output_data")
+    parser.add_argument("--output_dir", type=str, default="benches/data")
 
     args = parser.parse_args()
     main(args)

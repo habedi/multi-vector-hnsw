@@ -1,3 +1,4 @@
+// src/main/java/io/github/habedi/mvhnsw/distance/SquaredEuclidean.java
 package io.github.habedi.mvhnsw.distance;
 
 import io.github.habedi.mvhnsw.common.FloatVector;
@@ -6,7 +7,7 @@ import java.io.Serializable;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
 
-public class Euclidean implements Distance<FloatVector>, Serializable {
+public class SquaredEuclidean implements Distance<FloatVector>, Serializable {
 
   @Serial private static final long serialVersionUID = 1L;
 
@@ -15,17 +16,12 @@ public class Euclidean implements Distance<FloatVector>, Serializable {
 
   @Override
   public double compute(FloatVector a, FloatVector b) {
-    return Math.sqrt(computeSquared(a, b));
-  }
-
-  @Override
-  public double computeSquared(FloatVector a, FloatVector b) {
     if (a.length() != b.length()) {
       throw new IllegalArgumentException("Vector lengths must be equal.");
     }
 
-    float[] v1 = a.toPrimitiveArray();
-    float[] v2 = b.toPrimitiveArray();
+    float[] v1 = a.getRawData();
+    float[] v2 = b.getRawData();
     double sumSq = 0.0;
     int bound = SPECIES.loopBound(v1.length);
     int i = 0;
@@ -46,7 +42,12 @@ public class Euclidean implements Distance<FloatVector>, Serializable {
   }
 
   @Override
+  public double computeSquared(FloatVector a, FloatVector b) {
+    return compute(a, b);
+  }
+
+  @Override
   public String getName() {
-    return "Euclidean";
+    return "SquaredEuclidean";
   }
 }

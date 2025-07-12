@@ -7,6 +7,8 @@
 <h2>Multi-Vector HNSW</h2>
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/habedi/multi-vector-hnsw/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/multi-vector-hnsw/actions/workflows/tests.yml)
+[![Lints](https://img.shields.io/github/actions/workflow/status/habedi/multi-vector-hnsw/lints.yml?label=lint&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/multi-vector-hnsw/actions/workflows/lints.yml)
+[![Java](https://img.shields.io/badge/java-%3E=17-007ec6?style=flat&labelColor=282c34&logo=java)](https://openjdk.org)
 [![Code Coverage](https://img.shields.io/codecov/c/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codecov)](https://codecov.io/gh/habedi/multi-vector-hnsw)
 [![Code Quality](https://img.shields.io/codefactor/grade/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/multi-vector-hnsw)
 [![Docs](https://img.shields.io/badge/docs-latest-007ec6?style=flat&labelColor=282c34&logo=readthedocs)](docs)
@@ -48,7 +50,24 @@ This library aims to help users overcome this limitation by providing a flexible
 
 ### Getting Started
 
-To be added.
+If you are using Maven, add this dependency to your `pom.xml`:
+
+```xml
+
+<dependency>
+    <groupId>io.github.habedi</groupId>
+    <artifactId>multi-vector-hnsw</artifactId>
+    <version>0.2.0</version>
+</dependency>
+```
+
+If you are using Gradle, add this dependency to your `build.gradle`:
+
+```groovy
+dependencies {
+    implementation 'io.github.habedi:multi-vector-hnsw:0.2.0'
+}
+```
 
 ### Examples
 

@@ -1,3 +1,4 @@
+// src/main/java/io/github/habedi/mvhnsw/index/MultiVectorHNSW.java
 package io.github.habedi.mvhnsw.index;
 
 import io.github.habedi.mvhnsw.common.FloatVector;
@@ -16,7 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 public final class MultiVectorHNSW implements Index, Serializable {
 
-  @Serial private static final long serialVersionUID = 1L;
+  @Serial private static final long serialVersionUID = 2L;
   private static final Logger log = LogManager.getLogger(MultiVectorHNSW.class);
 
   private final MultiVectorDistance multiVectorDistance;
@@ -71,7 +72,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
       int level = assignLevel();
       log.debug("Adding item {} at level {}", id, level);
-      Node newNode = new Node(id, level);
+      Node newNode = new Node(id, level, m);
       nodes.put(id, newNode);
       vectorMap.put(id, vectors);
 
@@ -81,26 +82,42 @@ public final class MultiVectorHNSW implements Index, Serializable {
         return;
       }
 
-      Node nearestNode = findEntryPointForLevel(currentEntryPoint, vectors, level);
+      int entryPointLevel = currentEntryPoint.level;
+      Node nearestNode = currentEntryPoint;
 
-      for (int l = Math.min(level, getLevel(nearestNode)); l >= 0; l--) {
+      for (int l = entryPointLevel; l > level; l--) {
+        PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, 1, l);
+        if (candidates.isEmpty()) {
+          break;
+        }
+        long nearestId = candidates.peek().id;
+        nearestNode = nodes.get(nearestId);
+      }
+
+      for (int l = Math.min(level, entryPointLevel); l >= 0; l--) {
         PriorityQueue<Neighbor> neighbors = searchLayer(nearestNode, vectors, efConstruction, l);
-        List<Long> newConnections = selectNeighbors(neighbors, m);
-        newNode.connections.get(l).addAll(newConnections);
+
+        if (neighbors.isEmpty()) {
+          break;
+        }
+
+        List<Long> newConnections = selectNeighborsHeuristic(neighbors, m);
+        newNode.connections[l].addAll(newConnections);
 
         for (long neighborId : newConnections) {
           Node neighborNode = nodes.get(neighborId);
           if (neighborNode != null) {
-            List<Long> neighborConnections = neighborNode.connections.get(l);
+            List<Long> neighborConnections = neighborNode.connections[l];
             neighborConnections.add(id);
             if (neighborConnections.size() > m) {
-              pruneConnections(neighborNode, l);
+              pruneConnections(neighborNode, l, m);
             }
           }
         }
+        nearestNode = nodes.get(neighbors.peek().id);
       }
 
-      if (level > getLevel(currentEntryPoint)) {
+      if (level > entryPointLevel) {
         entryPoint = newNode;
         log.debug("New entry point: Node {} at level {}", newNode.id, level);
       }
@@ -140,7 +157,15 @@ public final class MultiVectorHNSW implements Index, Serializable {
         return Collections.emptyList();
       }
 
-      Node nearestNode = findEntryPointForLevel(currentEntryPoint, queryVectors, 0);
+      Node nearestNode = currentEntryPoint;
+      for (int l = currentEntryPoint.level; l > 0; l--) {
+        PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, queryVectors, 1, l);
+        if (candidates.isEmpty()) {
+          break;
+        }
+        long nearestId = candidates.peek().id;
+        nearestNode = nodes.get(nearestId);
+      }
 
       PriorityQueue<Neighbor> results =
           searchLayer(nearestNode, queryVectors, Math.max(k, efConstruction), 0);
@@ -245,18 +270,6 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
-  private Node findEntryPointForLevel(Node entry, List<FloatVector> query, int targetLevel) {
-    Node nearestNode = entry;
-    for (int l = getLevel(entry); l > targetLevel; l--) {
-      PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, query, 1, l);
-      if (candidates.isEmpty()) {
-        break;
-      }
-      nearestNode = nodes.get(candidates.peek().id);
-    }
-    return nearestNode;
-  }
-
   private PriorityQueue<Neighbor> searchLayer(
       Node entry, List<FloatVector> query, int ef, int level) {
     PriorityQueue<Neighbor> results = new PriorityQueue<>(Collections.reverseOrder());
@@ -281,11 +294,11 @@ public final class MultiVectorHNSW implements Index, Serializable {
       }
 
       Node node = nodes.get(candidate.id);
-      if (node == null || !node.connections.containsKey(level)) {
+      if (node == null || level > node.level) {
         continue;
       }
 
-      for (long neighborId : node.connections.get(level)) {
+      for (long neighborId : node.connections[level]) {
         if (visited.add(neighborId)) {
           Node neighborNode = nodes.get(neighborId);
           if (neighborNode != null && !neighborNode.deleted) {
@@ -311,10 +324,6 @@ public final class MultiVectorHNSW implements Index, Serializable {
     return (int) (-Math.log(ThreadLocalRandom.current().nextDouble()) * levelLambda);
   }
 
-  private int getLevel(Node node) {
-    return Collections.max(node.connections.keySet());
-  }
-
   private double distance(List<FloatVector> vectors, long nodeId2) {
     List<FloatVector> vectors2 = vectorMap.get(nodeId2);
     if (vectors2 == null) {
@@ -332,7 +341,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
     return multiVectorDistance.compute(vectors1, vectors2);
   }
 
-  private List<Long> selectNeighbors(PriorityQueue<Neighbor> candidates, int count) {
+  private List<Long> selectNeighborsHeuristic(PriorityQueue<Neighbor> candidates, int count) {
     return candidates.stream()
         .sorted()
         .limit(count)
@@ -340,9 +349,9 @@ public final class MultiVectorHNSW implements Index, Serializable {
         .collect(Collectors.toCollection(ArrayList::new));
   }
 
-  private void pruneConnections(Node node, int level) {
-    List<Long> connections = node.connections.get(level);
-    if (connections.size() <= m) {
+  private void pruneConnections(Node node, int level, int maxConnections) {
+    List<Long> connections = node.connections[level];
+    if (connections.size() <= maxConnections) {
       return;
     }
     log.debug(
@@ -350,17 +359,19 @@ public final class MultiVectorHNSW implements Index, Serializable {
         node.id,
         level,
         connections.size(),
-        m);
-    PriorityQueue<Neighbor> neighbors = new PriorityQueue<>(connections.size());
+        maxConnections);
+
+    PriorityQueue<Neighbor> neighbors =
+        new PriorityQueue<>(maxConnections + 1, Collections.reverseOrder());
     for (long neighborId : connections) {
       neighbors.add(new Neighbor(neighborId, distance(node.id, neighborId)));
+      if (neighbors.size() > maxConnections) {
+        neighbors.poll();
+      }
     }
 
-    List<Long> newConnections = new ArrayList<>(m);
-    while (newConnections.size() < m && !neighbors.isEmpty()) {
-      newConnections.add(neighbors.poll().id);
-    }
-    node.connections.put(level, newConnections);
+    connections.clear();
+    neighbors.stream().sorted().forEach(neighbor -> connections.add(neighbor.id));
   }
 
   @Serial
@@ -377,16 +388,19 @@ public final class MultiVectorHNSW implements Index, Serializable {
   }
 
   private static class Node implements Serializable {
-    @Serial private static final long serialVersionUID = 1L;
+    @Serial private static final long serialVersionUID = 2L;
     private final long id;
-    private final Map<Integer, List<Long>> connections;
+    private final int level;
+    private final List<Long>[] connections;
     private volatile boolean deleted = false;
 
-    Node(long id, int level) {
+    @SuppressWarnings("unchecked")
+    Node(long id, int level, int m) {
       this.id = id;
-      this.connections = new ConcurrentHashMap<>(level + 1);
+      this.level = level;
+      this.connections = (List<Long>[]) new ArrayList[level + 1];
       for (int i = 0; i <= level; i++) {
-        connections.put(i, new ArrayList<>());
+        connections[i] = new ArrayList<>(m);
       }
     }
   }
@@ -448,7 +462,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
           this.distances.add(distance);
           this.weights.add(weight);
         }
-        return this;
+        return this.parentBuilder.withWeightedAverageDistance();
       }
 
       public Builder and() {

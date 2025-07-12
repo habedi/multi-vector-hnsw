@@ -1,3 +1,4 @@
+// src/test/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistanceTest.java
 package io.github.habedi.mvhnsw.distance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,16 +12,16 @@ import org.junit.jupiter.api.Test;
 class WeightedAverageDistanceTest {
 
   private WeightedAverageDistance distance;
-  private Euclidean euclidean;
+  private SquaredEuclidean squaredEuclidean;
   private Cosine cosine;
 
   private List<Distance<FloatVector>> createDistancesList() {
-    return List.of(euclidean, cosine);
+    return List.of(squaredEuclidean, cosine);
   }
 
   @BeforeEach
   void setUp() {
-    euclidean = new Euclidean();
+    squaredEuclidean = new SquaredEuclidean();
     cosine = new Cosine();
     distance = new WeightedAverageDistance(createDistancesList(), new float[] {0.7f, 0.3f});
   }
@@ -79,10 +80,10 @@ class WeightedAverageDistanceTest {
     List<FloatVector> vectors1 = List.of(FloatVector.of(1.0f, 2.0f), FloatVector.of(1.0f, 0.0f));
     List<FloatVector> vectors2 = List.of(FloatVector.of(4.0f, 6.0f), FloatVector.of(0.0f, 1.0f));
 
-    // euclidean dist = sqrt((4-1)^2 + (6-2)^2) = sqrt(9 + 16) = 5.0
-    // cosine dist = 1 - (dot(v1,v2) / (norm(v1)*norm(v2))) = 1 - 0 = 1.0
-    // total = 0.7 * 5.0 + 0.3 * 1.0 = 3.5 + 0.3 = 3.8
-    assertEquals(3.8, distance.compute(vectors1, vectors2), 0.0001);
+    // squared euclidean dist = (4-1)^2 + (6-2)^2 = 9 + 16 = 25.0
+    // cosine dist = 1.0
+    // total = (0.7 * 25.0) + (0.3 * 1.0) = 17.5 + 0.3 = 17.8
+    assertEquals(17.8, distance.compute(vectors1, vectors2), 0.0001);
   }
 
   @Test
@@ -94,7 +95,7 @@ class WeightedAverageDistanceTest {
     List<FloatVector> vectors1 = List.of(FloatVector.of(1.0f, 2.0f), FloatVector.of(1.0f, 0.0f));
     List<FloatVector> vectors2 = List.of(FloatVector.of(4.0f, 6.0f), FloatVector.of(0.0f, 1.0f));
 
-    assertEquals(3.8, normalizedDistance.compute(vectors1, vectors2), 0.0001);
+    assertEquals(17.8, normalizedDistance.compute(vectors1, vectors2), 0.0001);
   }
 
   @Test

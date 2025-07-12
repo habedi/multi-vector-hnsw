@@ -1,3 +1,4 @@
+// src/test/java/io/github/habedi/mvhnsw/distance/SquaredEuclideanTest.java
 package io.github.habedi.mvhnsw.distance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -7,13 +8,13 @@ import io.github.habedi.mvhnsw.common.FloatVector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class EuclideanTest {
+class SquaredEuclideanTest {
 
-  private Euclidean distance;
+  private SquaredEuclidean distance;
 
   @BeforeEach
   void setUp() {
-    distance = new Euclidean();
+    distance = new SquaredEuclidean();
   }
 
   @Test
@@ -29,8 +30,8 @@ class EuclideanTest {
     FloatVector v1 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
     FloatVector v2 = new FloatVector(new float[] {4.0f, 5.0f, 6.0f});
 
-    // sqrt((4-1)^2 + (5-2)^2 + (6-3)^2) = sqrt(9 + 9 + 9) = sqrt(27) = 5.196
-    assertEquals(5.196, distance.compute(v1, v2), 0.001);
+    // (4-1)^2 + (5-2)^2 + (6-3)^2 = 9 + 9 + 9 = 27
+    assertEquals(27.0, distance.compute(v1, v2), 0.001);
   }
 
   @Test
@@ -60,6 +61,6 @@ class EuclideanTest {
 
   @Test
   void testGetName() {
-    assertEquals("Euclidean", distance.getName());
+    assertEquals("SquaredEuclidean", distance.getName());
   }
 }

@@ -75,4 +75,5 @@ bench-jar: ## Build the benchmark JAR file
 
 bench-run: bench-jar ## Run benchmarks (e.g., make bench-run MV_HNSW_LOG_LEVEL=debug)
 	@echo "Running benchmarks with log level $(MV_HNSW_LOG_LEVEL)..."
-	@java -Dmv.hnsw.log.level=$(MV_HNSW_LOG_LEVEL) -jar target/benchmarks.jar --dataset "se_cs_768"
+	@java --add-modules jdk.incubator.vector -Dmv.hnsw.log.level=$(MV_HNSW_LOG_LEVEL) \
+	-jar target/benchmarks.jar --dataset "se_cs_768"

@@ -1,10 +1,16 @@
+// src/benchmark/java/io/github/habedi/mvhnsw/bench/BenchmarkCLI.java
 package io.github.habedi.mvhnsw.bench;
 
+import io.github.habedi.mvhnsw.bench.IndexBenchmark.BenchmarkResult;
+
+import java.util.Collection;
 import java.util.concurrent.Callable;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.openjdk.jmh.results.RunResult;
 import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import picocli.CommandLine;
@@ -40,7 +46,7 @@ public class BenchmarkCLI implements Callable<Integer> {
   }
 
   @Override
-  public Integer call() throws Exception {
+  public Integer call() throws RunnerException {
     log.info(
       "Starting benchmark with dataset={}, m={}, efConstruction={}",
       datasetName,
@@ -53,10 +59,59 @@ public class BenchmarkCLI implements Callable<Integer> {
         .param("datasetName", datasetName)
         .param("m", String.valueOf(m))
         .param("efConstruction", String.valueOf(efConstruction))
-        .jvmArgs("--add-modules", "jdk.incubator.vector")
+        //.jvmArgs("--add-modules", "jdk.incubator.vector")
         .build();
 
-    new Runner(opt).run();
+    Collection<RunResult> results = new Runner(opt).run();
+    printSummaryTable(results);
+
     return 0;
+  }
+
+  private void printSummaryTable(Collection<RunResult> results) {
+    System.out.println("\n\n--- Benchmark Result Summary ---");
+    String header =
+      String.format(
+        "%-20s | %-8s | %-8s | %-8s | %-5s | %-8s | %-22s | %-12s",
+        "Distance", "Train", "Test", "Dims", "M", "efConst", "Throughput (ops/ms)", "Recall@100");
+    System.out.println(header);
+    System.out.println(new String(new char[header.length()]).replace("\0", "-"));
+
+    for (RunResult r : results) {
+      String benchmarkName = r.getPrimaryResult().getLabel();
+      if (!benchmarkName.equals("search")) {
+        continue;
+      }
+
+      var params = r.getParams();
+      String metric = params.getParam("distanceMetric");
+      int mParam = Integer.parseInt(params.getParam("m"));
+      int efcParam = Integer.parseInt(params.getParam("efConstruction"));
+
+      String key =
+        IndexBenchmark.getParamKey(
+          params.getParam("datasetName"), metric, mParam, efcParam);
+      BenchmarkResult data = IndexBenchmark.benchmarkData.get(key);
+      if (data == null) {
+        continue;
+      }
+
+      double throughput = r.getPrimaryResult().getScore();
+      double throughputError = r.getPrimaryResult().getScoreError();
+      String throughputStr = String.format("%.4f ± %.4f", throughput, throughputError);
+      String dims = String.format("%dx%d", data.numVectors(), data.vectorDim());
+
+      System.out.printf(
+        "%-20s | %-8d | %-8d | %-8s | %-5d | %-8d | %-22s | %.4f\n",
+        metric,
+        data.trainSize(),
+        data.testSize(),
+        dims,
+        mParam,
+        efcParam,
+        throughputStr,
+        data.recall());
+    }
+    System.out.println();
   }
 }
