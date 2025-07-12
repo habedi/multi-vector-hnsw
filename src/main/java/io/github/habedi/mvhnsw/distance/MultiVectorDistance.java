@@ -5,5 +5,5 @@ import java.util.List;
 
 public interface MultiVectorDistance {
 
-    double compute(List<FloatVector> vectors1, List<FloatVector> vectors2);
+  double compute(List<FloatVector> vectors1, List<FloatVector> vectors2);
 }

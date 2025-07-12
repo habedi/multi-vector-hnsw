@@ -9,77 +9,77 @@ import org.junit.jupiter.api.Test;
 
 class CosineTest {
 
-    private Cosine distance;
+  private Cosine distance;
 
-    @BeforeEach
-    void setUp() {
-        distance = new Cosine();
-    }
+  @BeforeEach
+  void setUp() {
+    distance = new Cosine();
+  }
 
-    @Test
-    void testComputeWithIdenticalVectors() {
-        FloatVector v1 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
-        FloatVector v2 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
+  @Test
+  void testComputeWithIdenticalVectors() {
+    FloatVector v1 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
+    FloatVector v2 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
 
-        // Identical vectors have cosine similarity of 1, so distance is 0
-        assertEquals(0.0, distance.compute(v1, v2), 0.0001);
-    }
+    // Identical vectors have cosine similarity of 1, so distance is 0
+    assertEquals(0.0, distance.compute(v1, v2), 0.0001);
+  }
 
-    @Test
-    void testComputeWithOrthogonalVectors() {
-        FloatVector v1 = new FloatVector(new float[] {1.0f, 0.0f, 0.0f});
-        FloatVector v2 = new FloatVector(new float[] {0.0f, 1.0f, 0.0f});
+  @Test
+  void testComputeWithOrthogonalVectors() {
+    FloatVector v1 = new FloatVector(new float[] {1.0f, 0.0f, 0.0f});
+    FloatVector v2 = new FloatVector(new float[] {0.0f, 1.0f, 0.0f});
 
-        // Orthogonal vectors have cosine similarity of 0, so distance is 1
-        assertEquals(1.0, distance.compute(v1, v2), 0.0001);
-    }
+    // Orthogonal vectors have cosine similarity of 0, so distance is 1
+    assertEquals(1.0, distance.compute(v1, v2), 0.0001);
+  }
 
-    @Test
-    void testComputeWithOppositeVectors() {
-        FloatVector v1 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
-        FloatVector v2 = new FloatVector(new float[] {-1.0f, -2.0f, -3.0f});
+  @Test
+  void testComputeWithOppositeVectors() {
+    FloatVector v1 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
+    FloatVector v2 = new FloatVector(new float[] {-1.0f, -2.0f, -3.0f});
 
-        // Opposite vectors have cosine similarity of -1, so distance is 2
-        assertEquals(2.0, distance.compute(v1, v2), 0.0001);
-    }
+    // Opposite vectors have cosine similarity of -1, so distance is 2
+    assertEquals(2.0, distance.compute(v1, v2), 0.0001);
+  }
 
-    @Test
-    void testComputeWithDifferentLengthVectors() {
-        FloatVector v1 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
-        FloatVector v2 = new FloatVector(new float[] {4.0f, 5.0f});
+  @Test
+  void testComputeWithDifferentLengthVectors() {
+    FloatVector v1 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
+    FloatVector v2 = new FloatVector(new float[] {4.0f, 5.0f});
 
-        assertThrows(IllegalArgumentException.class, () -> distance.compute(v1, v2));
-    }
+    assertThrows(IllegalArgumentException.class, () -> distance.compute(v1, v2));
+  }
 
-    @Test
-    void testComputeWithZeroVector() {
-        FloatVector v1 = new FloatVector(new float[] {0.0f, 0.0f, 0.0f});
-        FloatVector v2 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
+  @Test
+  void testComputeWithZeroVector() {
+    FloatVector v1 = new FloatVector(new float[] {0.0f, 0.0f, 0.0f});
+    FloatVector v2 = new FloatVector(new float[] {1.0f, 2.0f, 3.0f});
 
-        // When one vector is zero, cosine similarity is 0, so distance is 1
-        assertEquals(1.0, distance.compute(v1, v2), 0.0001);
-    }
+    // When one vector is zero, cosine similarity is 0, so distance is 1
+    assertEquals(1.0, distance.compute(v1, v2), 0.0001);
+  }
 
-    @Test
-    void testComputeWithBothZeroVectors() {
-        FloatVector v1 = new FloatVector(new float[] {0.0f, 0.0f, 0.0f});
-        FloatVector v2 = new FloatVector(new float[] {0.0f, 0.0f, 0.0f});
+  @Test
+  void testComputeWithBothZeroVectors() {
+    FloatVector v1 = new FloatVector(new float[] {0.0f, 0.0f, 0.0f});
+    FloatVector v2 = new FloatVector(new float[] {0.0f, 0.0f, 0.0f});
 
-        // When both vectors are zero, cosine similarity is defined as 0, so distance is 1
-        assertEquals(1.0, distance.compute(v1, v2), 0.0001);
-    }
+    // When both vectors are zero, cosine similarity is defined as 0, so distance is 1
+    assertEquals(1.0, distance.compute(v1, v2), 0.0001);
+  }
 
-    @Test
-    void testComputeSquared() {
-        FloatVector v1 = new FloatVector(new float[] {1.0f, 0.0f, 0.0f});
-        FloatVector v2 = new FloatVector(new float[] {0.0f, 1.0f, 0.0f});
+  @Test
+  void testComputeSquared() {
+    FloatVector v1 = new FloatVector(new float[] {1.0f, 0.0f, 0.0f});
+    FloatVector v2 = new FloatVector(new float[] {0.0f, 1.0f, 0.0f});
 
-        // Cosine distance is 1, so squared distance is 1
-        assertEquals(1.0, distance.computeSquared(v1, v2), 0.0001);
-    }
+    // Cosine distance is 1, so squared distance is 1
+    assertEquals(1.0, distance.computeSquared(v1, v2), 0.0001);
+  }
 
-    @Test
-    void testGetName() {
-        assertEquals("Cosine", distance.getName());
-    }
+  @Test
+  void testGetName() {
+    assertEquals("Cosine", distance.getName());
+  }
 }

@@ -2,11 +2,17 @@
 MVN := $(if $(wildcard ./mvnw),./mvnw,mvn)
 SHELL := /bin/bash
 
+# Extract project version from pom.xml
+PROJECT_VERSION := $(shell $(MVN) help:evaluate -Dexpression=project.version -q -DforceStdout)
+
+# Default log level, can be overridden from the command line
+MV_HNSW_LOG_LEVEL ?= warn
+
 # Default target executed when 'make' is run without arguments
 .DEFAULT_GOAL := help
 
 # Phony targets don't represent files
-.PHONY: help build package test format format-check lint clean setup-hooks test-hooks
+.PHONY: help build package test format format-check lint clean setup-hooks test-hooks bench-data bench-jar bench-run release
 
 help: ## Show this help message
 	@echo "Usage: make <target>"
@@ -19,13 +25,17 @@ build: ## Run the full Maven build lifecycle (compile, check, test, and package)
 	@echo "Building project and running all checks..."
 	@$(MVN) -B verify
 
-package: ## Compile and package the application into a JAR file
-	@echo "Packaging application..."
+package: ## Compile and package the library into a JAR file
+	@echo "Packaging project into JAR file..."
 	@$(MVN) -B package
 
-test: ## Run all the tests
-	@echo "Running tests..."
-	@$(MVN) -B test
+publish: ## Deploys the release artifacts to Maven Central
+	@echo "Deploying to Maven Central..."
+	@$(MVN) -B deploy -P release
+
+test: ## Run tests (e.g., make test MV_HNSW_LOG_LEVEL=debug)
+	@echo "Running tests with log level: $(MV_HNSW_LOG_LEVEL)..."
+	@$(MVN) -B test -Dmv.hnsw.log.level=$(MV_HNSW_LOG_LEVEL)
 
 format: ## Format Java source files
 	@echo "Formatting source code..."
@@ -46,8 +56,8 @@ clean: ## Remove all build artifacts
 setup-hooks: ## Set up pre-commit hooks
 	@echo "Setting up pre-commit hooks..."
 	@if ! command -v pre-commit &> /dev/null; then \
-		echo "pre-commit not found. Please install it using 'pip install pre-commit'"; \
-		exit 1; \
+	   echo "pre-commit not found. Please install it using 'pip install pre-commit'"; \
+	   exit 1; \
 	fi
 	@pre-commit install --install-hooks
 
@@ -63,6 +73,6 @@ bench-jar: ## Build the benchmark JAR file
 	@echo "Building benchmark JAR file..."
 	@$(MVN) clean package -Pbenchmark
 
-bench-run: ## Run the benchmarks
-	@echo "Running benchmarks..."
-	@java -jar target/benchmarks.jar --dataset "se_cs_768"
+bench-run: bench-jar ## Run benchmarks (e.g., make bench-run MV_HNSW_LOG_LEVEL=debug)
+	@echo "Running benchmarks with log level $(MV_HNSW_LOG_LEVEL)..."
+	@java -Dmv.hnsw.log.level=$(MV_HNSW_LOG_LEVEL) -jar target/benchmarks.jar --dataset "se_cs_768"

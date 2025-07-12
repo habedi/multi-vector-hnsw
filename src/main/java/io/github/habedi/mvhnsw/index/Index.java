@@ -11,30 +11,30 @@ import java.util.Set;
 
 public interface Index {
 
-    void add(long id, List<FloatVector> vectors);
+  void add(long id, List<FloatVector> vectors);
 
-    boolean remove(long id);
+  boolean remove(long id);
 
-    void addAll(Map<Long, List<FloatVector>> items);
+  void addAll(Map<Long, List<FloatVector>> items);
 
-    List<SearchResult> search(List<FloatVector> queryVectors, int k);
+  List<SearchResult> search(List<FloatVector> queryVectors, int k);
 
-    Optional<List<FloatVector>> get(long id);
+  Optional<List<FloatVector>> get(long id);
 
-    int size();
+  int size();
 
-    Set<Long> keySet();
+  Set<Long> keySet();
 
-    MultiVectorDistance getDistance();
+  MultiVectorDistance getDistance();
 
-    void save(Path path) throws IOException;
+  void save(Path path) throws IOException;
 
-    void clear();
+  void clear();
 
-    /**
-     * Rebuilds the index to permanently remove items that were marked for deletion via the {@link
-     * #remove(long)} method. This operation can be expensive and should be called periodically
-     * after a large number of removals to reclaim memory and maintain performance.
-     */
-    void vacuum();
+  /**
+   * Rebuilds the index to permanently remove items that were marked for deletion via the {@link
+   * #remove(long)} method. This operation can be expensive and should be called periodically after
+   * a large number of removals to reclaim memory and maintain performance.
+   */
+  void vacuum();
 }

@@ -8,6 +8,6 @@ import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record GroundTruth(
-    @JsonProperty("id") long id,
-    @JsonProperty("top_100_euclidean") Map<String, List<?>> topKNeighborhood) {
+  @JsonProperty("id") long id,
+  @JsonProperty("top_100_euclidean") Map<String, List<?>> topKNeighborhood) {
 }

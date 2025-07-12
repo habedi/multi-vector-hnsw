@@ -92,7 +92,8 @@ def find_ground_truth(clean_test_data, clean_train_data, k):
             train_id = train_ids[i]
             train_emb = train_embeddings[i]
 
-            dist_euc = calculate_aggregated_distance(test_emb, train_emb, weights, euclidean_distance)
+            dist_euc = calculate_aggregated_distance(test_emb, train_emb, weights,
+                                                     euclidean_distance)
             dist_cos = calculate_aggregated_distance(test_emb, train_emb, weights, cosine_distance)
 
             euclidean_neighbors.append({"id": train_id, "dist": dist_euc})
@@ -138,8 +139,10 @@ def main(args):
     split_dataset = dataset.train_test_split(test_size=0.1, seed=42)
 
     # --- Clean and prepare data ---
-    clean_train_data = validate_and_clean_data(split_dataset["train"], args.id_column, args.embedding_column)
-    clean_test_data = validate_and_clean_data(split_dataset["test"], args.id_column, args.embedding_column)
+    clean_train_data = validate_and_clean_data(split_dataset["train"], args.id_column,
+                                               args.embedding_column)
+    clean_test_data = validate_and_clean_data(split_dataset["test"], args.id_column,
+                                              args.embedding_column)
 
     # --- Find Neighbors ---
     ground_truth_data = find_ground_truth(

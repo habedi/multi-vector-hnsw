@@ -6,12 +6,12 @@
 
 <h2>Multi-Vector HNSW</h2>
 
-[![Tests](https://img.shields.io/github/actions/workflow/status/habedi/multi-vector-hnsw/tests.yml?label=tests&style=flat&labelColor=282c34&color=4caf50&logo=github)](https://github.com/habedi/multi-vector-hnsw/actions/workflows/tests.yml)
-[![Code Coverage](https://img.shields.io/codecov/c/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&color=ffca28&logo=codecov)](https://codecov.io/gh/habedi/multi-vector-hnsw)
-[![Code Quality](https://img.shields.io/codefactor/grade/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&color=4caf50&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/multi-vector-hnsw)
+[![Tests](https://img.shields.io/github/actions/workflow/status/habedi/multi-vector-hnsw/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/multi-vector-hnsw/actions/workflows/tests.yml)
+[![Code Coverage](https://img.shields.io/codecov/c/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codecov)](https://codecov.io/gh/habedi/multi-vector-hnsw)
+[![Code Quality](https://img.shields.io/codefactor/grade/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/multi-vector-hnsw)
 [![Docs](https://img.shields.io/badge/docs-latest-007ec6?style=flat&labelColor=282c34&logo=readthedocs)](docs)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-007ec6?style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/multi-vector-hnsw)
-[![Release](https://img.shields.io/github/release/habedi/multi-vector-hnsw.svg?style=flat&labelColor=282c34&color=f46623&logo=github)](https://github.com/habedi/multi-vector-hnsw/releases/latest)
+[![Release](https://img.shields.io/github/release/habedi/multi-vector-hnsw.svg?style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/multi-vector-hnsw/releases/latest)
 
 A Java implementation of HNSW with multi-vector search support
 
@@ -41,9 +41,22 @@ This library aims to help users overcome this limitation by providing a flexible
 - **Memory-efficient**: Designed to handle large datasets with minimal memory overhead.
 - **Java-based**: Written in pure Java 17+, and easily integrable into applications running on the JVM.
 
+> [!IMPORTANT]
+> This project is in its early stages of development, so breaking changes are expected to occur.
+
 ---
 
 ### Getting Started
+
+To be added.
+
+### Examples
+
+To be added.
+
+---
+
+### Documentation
 
 To be added.
 

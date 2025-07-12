@@ -12,40 +12,40 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public record BenchmarkData(
-    List<TestItem> trainingData, List<TestItem> testData, Map<Long, Set<Long>> groundTruth) {
+  List<TestItem> trainingData, List<TestItem> testData, Map<Long, Set<Long>> groundTruth) {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public static BenchmarkData load(String datasetName) throws IOException {
-        Path dataPath = Paths.get("benches", "data", datasetName);
+  public static BenchmarkData load(String datasetName) throws IOException {
+    Path dataPath = Paths.get("benches", "data", datasetName);
 
-        List<TestItem> trainingData =
-            MAPPER.readValue(
-                dataPath.resolve("train.json").toFile(), new TypeReference<>() {
-                });
+    List<TestItem> trainingData =
+      MAPPER.readValue(
+        dataPath.resolve("train.json").toFile(), new TypeReference<>() {
+        });
 
-        List<TestItem> testData =
-            MAPPER.readValue(
-                dataPath.resolve("test.json").toFile(), new TypeReference<>() {
-                });
+    List<TestItem> testData =
+      MAPPER.readValue(
+        dataPath.resolve("test.json").toFile(), new TypeReference<>() {
+        });
 
-        List<GroundTruth> groundTruthData =
-            MAPPER.readValue(
-                dataPath.resolve("neighbours.json").toFile(),
-                new TypeReference<>() {
-                });
+    List<GroundTruth> groundTruthData =
+      MAPPER.readValue(
+        dataPath.resolve("neighbours.json").toFile(),
+        new TypeReference<>() {
+        });
 
-        Map<Long, Set<Long>> groundTruthMap =
-            groundTruthData.stream()
-                .collect(
-                    Collectors.toMap(
-                        GroundTruth::id,
-                        gt ->
-                            ((List<Number>) gt.topKNeighborhood().get("ids"))
-                                .stream()
-                                .map(Number::longValue)
-                                .collect(Collectors.toSet())));
+    Map<Long, Set<Long>> groundTruthMap =
+      groundTruthData.stream()
+        .collect(
+          Collectors.toMap(
+            GroundTruth::id,
+            gt ->
+              ((List<Number>) gt.topKNeighborhood().get("ids"))
+                .stream()
+                .map(Number::longValue)
+                .collect(Collectors.toSet())));
 
-        return new BenchmarkData(trainingData, testData, groundTruthMap);
-    }
+    return new BenchmarkData(trainingData, testData, groundTruthMap);
+  }
 }
