@@ -286,6 +286,14 @@ To be added.
 
 ---
 
+### Benchmarks
+
+To can use `make bench-data` command to download the datasets used for the benchmarks.
+
+Run `BENCHMARK_DATASET=<dataset_name> make bench-run` to run the benchmarks for a specified dataset.
+At the moment, `<dataset_name>` can be one of `se_cs_768`, `se_ds_768`, or `se_pc_768`.
+See the [benches/README.md](benches/README.md) file for more information about the benchmarks and datasets.
+
 ### Contributing
 
 Contributions are welcome!
