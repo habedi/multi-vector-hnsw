@@ -1,8 +1,8 @@
-// src/benchmark/java/io/github/habedi/mvhnsw/bench/data/BenchmarkData.java
 package io.github.habedi.mvhnsw.bench.data;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -16,18 +16,21 @@ public record BenchmarkData(
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  public static BenchmarkData load(String datasetName, String distanceMetric, int k)
+  public static BenchmarkData load(String basePath, String datasetName, String distanceMetric, int k)
     throws IOException {
-    Path dataPath = Paths.get("benches", "data", datasetName);
+    Path dataPath = Paths.get(basePath, datasetName);
 
     List<TestItem> trainingData =
-      MAPPER.readValue(dataPath.resolve("train.json").toFile(), new TypeReference<>() {});
+      MAPPER.readValue(dataPath.resolve("train.json").toFile(), new TypeReference<>() {
+      });
 
     List<TestItem> testData =
-      MAPPER.readValue(dataPath.resolve("test.json").toFile(), new TypeReference<>() {});
+      MAPPER.readValue(dataPath.resolve("test.json").toFile(), new TypeReference<>() {
+      });
 
     List<GroundTruth> groundTruthData =
-      MAPPER.readValue(dataPath.resolve("neighbours.json").toFile(), new TypeReference<>() {});
+      MAPPER.readValue(dataPath.resolve("neighbours.json").toFile(), new TypeReference<>() {
+      });
 
     String groundTruthKey = String.format("top_%d_%s", k, distanceMetric.toLowerCase());
 

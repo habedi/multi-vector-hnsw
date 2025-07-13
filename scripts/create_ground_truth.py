@@ -1,8 +1,7 @@
 import argparse
 import json
-import os
-
 import numpy as np
+import os
 from datasets import load_dataset
 from tqdm import tqdm
 

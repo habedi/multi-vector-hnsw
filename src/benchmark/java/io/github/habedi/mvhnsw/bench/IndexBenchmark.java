@@ -1,4 +1,3 @@
-// src/benchmark/java/io/github/habedi/mvhnsw/bench/IndexBenchmark.java
 package io.github.habedi.mvhnsw.bench;
 
 import io.github.habedi.mvhnsw.bench.data.BenchmarkData;
@@ -11,6 +10,7 @@ import io.github.habedi.mvhnsw.distance.SquaredEuclidean;
 import io.github.habedi.mvhnsw.index.Index;
 import io.github.habedi.mvhnsw.index.MultiVectorHNSW;
 import io.github.habedi.mvhnsw.index.SearchResult;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +18,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
+
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
@@ -38,31 +40,25 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class IndexBenchmark {
 
-  private static final int K = 100;
-
-  public record BenchmarkResult(
-    double recall, int trainSize, int testSize, int numVectors, int vectorDim) {}
-
   public static final Map<String, BenchmarkResult> benchmarkData = new ConcurrentHashMap<>();
-
+  private static final int K = 100;
   private final LongAdder hits = new LongAdder();
   private final LongAdder totalQueries = new LongAdder();
-
   @Param({"se_cs_768"})
   public String datasetName;
-
+  @Param("") // Injected by the runner from BenchmarkCLI
+  public String dataPath;
   @Param({"squared_euclidean", "cosine", "dot_product"})
   public String distanceMetric;
-
   @Param({"16"})
   public int m;
-
   @Param({"200"})
   public int efConstruction;
-
   private BenchmarkData loadedData;
   private Index index;
   private int trainSize, testSize, numVectors, vectorDim;
+  private Map<Long, List<FloatVector>> preConvertedTestData;
+  private Map<Long, List<FloatVector>> preConvertedTrainingData;
 
   public static String getParamKey(String dataset, String metric, int m, int efc) {
     return String.format("%s|%s|%d|%d", dataset, metric, m, efc);
@@ -70,7 +66,7 @@ public class IndexBenchmark {
 
   @Setup(Level.Trial)
   public void setupTrial() throws IOException {
-    loadedData = BenchmarkData.load(datasetName, distanceMetric, K);
+    loadedData = BenchmarkData.load(dataPath, datasetName, distanceMetric, K);
     trainSize = loadedData.trainingData().size();
     testSize = loadedData.testData().size();
 
@@ -81,6 +77,13 @@ public class IndexBenchmark {
         vectorDim = vectors.get(0).length();
       }
     }
+
+    preConvertedTestData =
+      loadedData.testData().stream()
+        .collect(Collectors.toMap(TestItem::id, TestItem::toFloatVectors));
+    preConvertedTrainingData =
+      loadedData.trainingData().stream()
+        .collect(Collectors.toMap(TestItem::id, TestItem::toFloatVectors));
 
     index = buildIndex();
     hits.reset();
@@ -105,18 +108,14 @@ public class IndexBenchmark {
 
   @Benchmark
   public void search(Blackhole bh) {
-    for (TestItem testItem : loadedData.testData()) {
-      List<SearchResult> results = index.search(testItem.toFloatVectors(), K);
-      updateRecall(testItem.id(), results, loadedData.groundTruth());
+    for (Map.Entry<Long, List<FloatVector>> entry : preConvertedTestData.entrySet()) {
+      List<SearchResult> results = index.search(entry.getValue(), K);
+      updateRecall(entry.getKey(), results, loadedData.groundTruth());
       bh.consume(results);
     }
   }
 
   private Index buildIndex() {
-    List<FloatVector> vectors = loadedData.trainingData().get(0).toFloatVectors();
-    int numVectors = vectors.size();
-    float weight = 1.0f / numVectors;
-
     MultiVectorHNSW.Builder.WeightedAverageDistanceBuilder distanceBuilder =
       MultiVectorHNSW.builder()
         .withM(m)
@@ -125,13 +124,11 @@ public class IndexBenchmark {
 
     Distance<FloatVector> distance = createDistance();
     for (int i = 0; i < numVectors; i++) {
-      distanceBuilder.addDistance(distance, weight);
+      distanceBuilder.addDistance(distance, 1.0f / numVectors);
     }
 
     Index newIndex = distanceBuilder.and().build();
-    for (TestItem item : loadedData.trainingData()) {
-      newIndex.add(item.id(), item.toFloatVectors());
-    }
+    newIndex.addAll(preConvertedTrainingData);
     return newIndex;
   }
 
@@ -152,5 +149,9 @@ public class IndexBenchmark {
       hits.add(currentHits);
       totalQueries.increment();
     }
+  }
+
+  public record BenchmarkResult(
+    double recall, int trainSize, int testSize, int numVectors, int vectorDim) {
   }
 }

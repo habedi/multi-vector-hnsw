@@ -2,17 +2,20 @@
 MVN := $(if $(wildcard ./mvnw),./mvnw,mvn)
 SHELL := /bin/bash
 
-# Extract project version from pom.xml
-PROJECT_VERSION := $(shell $(MVN) help:evaluate -Dexpression=project.version -q -DforceStdout)
-
 # Default log level, can be overridden from the command line
-MV_HNSW_LOG_LEVEL ?= warn
+LOG_LEVEL ?= warn
+
+# Benchmark data directory
+BENCHMARK_DATA_DIR ?= benches/multi-vector-hnsw-datasets
+
+# Default benchmark dataset
+BENCHMARK_DATASET ?= se_p_768
 
 # Default target executed when 'make' is run without arguments
 .DEFAULT_GOAL := help
 
 # Phony targets don't represent files
-.PHONY: help build package test format format-check lint clean setup-hooks test-hooks bench-data bench-jar bench-run release
+.PHONY: help build package publish test format format-check lint clean setup-hooks test-hooks bench-data bench-jar bench-run
 
 help: ## Show this help message
 	@echo "Usage: make <target>"
@@ -33,9 +36,9 @@ publish: ## Deploys the release artifacts to Maven Central
 	@echo "Deploying to Maven Central..."
 	@$(MVN) -B deploy -P release
 
-test: ## Run tests (e.g., make test MV_HNSW_LOG_LEVEL=debug)
-	@echo "Running tests with log level: $(MV_HNSW_LOG_LEVEL)..."
-	@$(MVN) -B verify -Dmv.hnsw.log.level=$(MV_HNSW_LOG_LEVEL)
+test: ## Run tests (e.g., make test LOG_LEVEL=debug)
+	@echo "Running tests with log level: $(LOG_LEVEL)..."
+	@$(MVN) -B verify -Dmv.hnsw.log.level=$(LOG_LEVEL)
 
 format: ## Format Java source files
 	@echo "Formatting source code..."
@@ -65,15 +68,16 @@ test-hooks: ## Test pre-commit hooks on all files
 	@echo "Testing pre-commit hooks..."
 	@./scripts/test_precommit_hooks.sh
 
-bench-data: ## Download and prepare benchmark datasets
-	@echo "Downloading and preparing benchmark datasets..."
-	@./scripts/create_benchmark_datasets.sh
+bench-data: ## Download the benchmark datasets
+	@echo "Downloading the datasets used for benchmarks..."
+	@$(SHELL) scripts/download_benchmark_datasets.sh
 
 bench-jar: ## Build the benchmark JAR file
 	@echo "Building benchmark JAR file..."
 	@$(MVN) clean package -Pbenchmark
 
-bench-run: bench-jar ## Run benchmarks (e.g., make bench-run MV_HNSW_LOG_LEVEL=debug)
-	@echo "Running benchmarks with log level $(MV_HNSW_LOG_LEVEL)..."
-	@java --add-modules jdk.incubator.vector -Dmv.hnsw.log.level=$(MV_HNSW_LOG_LEVEL) \
-	-jar target/benchmarks.jar --dataset "se_cs_768"
+bench-run: bench-jar ## Run benchmarks (e.g., make bench-run LOG_LEVEL=debug)
+	@echo "Running benchmarks with log level $(LOG_LEVEL)..."
+	@java --add-modules jdk.incubator.vector -Dmv.hnsw.log.level=$(LOG_LEVEL) \
+	-jar target/benchmarks.jar --dataset $(BENCHMARK_DATASET) --data-path $(BENCHMARK_DATA_DIR) \
+	--profiler "stack"

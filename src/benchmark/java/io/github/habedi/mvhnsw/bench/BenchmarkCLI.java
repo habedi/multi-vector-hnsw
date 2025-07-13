@@ -1,4 +1,3 @@
-// src/benchmark/java/io/github/habedi/mvhnsw/bench/BenchmarkCLI.java
 package io.github.habedi.mvhnsw.bench;
 
 import io.github.habedi.mvhnsw.bench.IndexBenchmark.BenchmarkResult;
@@ -11,6 +10,7 @@ import org.apache.logging.log4j.Logger;
 import org.openjdk.jmh.results.RunResult;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.ChainedOptionsBuilder;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import picocli.CommandLine;
@@ -31,6 +31,12 @@ public class BenchmarkCLI implements Callable<Integer> {
     defaultValue = "se_cs_768")
   private String datasetName;
 
+  @Option(
+    names = {"--data-path"},
+    description = "The base path to the benchmark data directory.",
+    defaultValue = "benches/data")
+  private String dataPath;
+
   @Option(names = {"-m"}, description = "The M parameter for HNSW.", defaultValue = "16")
   private int m;
 
@@ -39,6 +45,11 @@ public class BenchmarkCLI implements Callable<Integer> {
     description = "The efConstruction parameter for HNSW.",
     defaultValue = "200")
   private int efConstruction;
+
+  @Option(
+    names = {"-p", "--profiler"},
+    description = "Enable a JMH profiler (e.g., 'stack', 'jfr').")
+  private String profiler;
 
   public static void main(String[] args) {
     int exitCode = new CommandLine(new BenchmarkCLI()).execute(args);
@@ -53,15 +64,20 @@ public class BenchmarkCLI implements Callable<Integer> {
       m,
       efConstruction);
 
-    Options opt =
+    ChainedOptionsBuilder builder =
       new OptionsBuilder()
         .include(IndexBenchmark.class.getSimpleName())
         .param("datasetName", datasetName)
+        .param("dataPath", dataPath)
         .param("m", String.valueOf(m))
-        .param("efConstruction", String.valueOf(efConstruction))
-        //.jvmArgs("--add-modules", "jdk.incubator.vector")
-        .build();
+        .param("efConstruction", String.valueOf(efConstruction));
 
+    if (profiler != null && !profiler.isBlank()) {
+      log.info("Enabling JMH profiler: {}", profiler);
+      builder.addProfiler(profiler);
+    }
+
+    Options opt = builder.build();
     Collection<RunResult> results = new Runner(opt).run();
     printSummaryTable(results);
 
@@ -69,7 +85,7 @@ public class BenchmarkCLI implements Callable<Integer> {
   }
 
   private void printSummaryTable(Collection<RunResult> results) {
-    System.out.println("\n\n--- Benchmark Result Summary ---");
+    System.out.println("\n\n--- HNSW Benchmark Summary ---");
     String header =
       String.format(
         "%-20s | %-8s | %-8s | %-8s | %-5s | %-8s | %-22s | %-12s",
