@@ -1,0 +1,45 @@
+digraph DistanceAggregation {
+    fontname = "Helvetica,Arial,sans-serif"
+    layout = dot
+    rankdir = LR
+    ranksep = 0.7
+    nodesep = 0.6
+
+    node [
+    fontname = "Helvetica,Arial,sans-serif",
+    fontsize = 10,
+    shape = box,
+    style = "filled",
+    color = "black",
+    penwidth = 1.6,
+    fillcolor = "white",
+    margin = "0.06,0.04",
+    width = 1.2,
+    height = 0.35,
+    fixedsize = false
+    ]
+
+    edge [
+    fontname = "Helvetica,Arial,sans-serif",
+    fontsize = 10,
+    color = "black",
+    arrowsize = 0.8
+    ]
+
+    // Input nodes
+    listU [label = "Item A:\n[u₁, u₂, ..., uₙ]", fillcolor = "#D6EAF8"]
+    listV [label = "Item B:\n[v₁, v₂, ..., vₙ]", fillcolor = "#D6EAF8"]
+    distanceFn [label = "Base Distance Function(s):\nCosine, Euclidean, etc.", fillcolor = "#FADBD8"]
+
+    // Aggregation node
+    aggregator [label = "Distance Aggregation\nFunction", fillcolor = "#FCF3CF", style = "filled,bold"]
+
+    // Output node
+    result [label = "Aggregated Distance:\nScalar Value", fillcolor = "#ABEBC6", style = "filled,bold"]
+
+    // Edges
+    listU -> aggregator
+    listV -> aggregator
+    distanceFn -> aggregator
+    aggregator -> result
+}

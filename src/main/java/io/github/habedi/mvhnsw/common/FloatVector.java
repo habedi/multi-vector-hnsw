@@ -1,5 +1,6 @@
-// src/main/java/io/github/habedi/mvhnsw/common/FloatVector.java
 package io.github.habedi.mvhnsw.common;
+
+import static jdk.incubator.vector.FloatVector.SPECIES_PREFERRED;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -7,16 +8,31 @@ import java.util.Arrays;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
 
+/**
+ * A final, serializable implementation of a vector of floats.
+ *
+ * <p>This class provides common vector operations and is optimized with the Java Vector API for
+ * performance. It is immutable by cloning the input data array.
+ */
 public final class FloatVector implements Vector<Float>, Serializable {
 
   @Serial private static final long serialVersionUID = 1L;
 
-  private static final VectorSpecies<Float> SPECIES =
-      jdk.incubator.vector.FloatVector.SPECIES_PREFERRED;
+  private static final VectorSpecies<Float> SPECIES = SPECIES_PREFERRED;
 
+  /** The internal, private array storing the vector's components. */
   private final float[] data;
+
+  /** A transient, volatile field to cache the calculated L2 norm for performance. */
   private transient volatile double norm = -1;
 
+  /**
+   * Constructs a new FloatVector.
+   *
+   * @param data The float array to create the vector from. The data is cloned to maintain
+   *     immutability.
+   * @throws IllegalArgumentException if the data array is null or empty.
+   */
   public FloatVector(float[] data) {
     if (data == null || data.length == 0) {
       throw new IllegalArgumentException("Vector data cannot be null or empty.");
@@ -24,16 +40,22 @@ public final class FloatVector implements Vector<Float>, Serializable {
     this.data = data.clone();
   }
 
+  /**
+   * A factory method for creating a FloatVector from a varargs array of floats.
+   *
+   * @param data The float values to include in the vector.
+   * @return A new FloatVector instance.
+   */
   public static FloatVector of(float... data) {
     return new FloatVector(data);
   }
 
   /**
-   * Provides direct access to the internal float array.
+   * Provides direct, read-only access to the internal float array.
    *
    * <p><b>Warning:</b> This method is intended for performance-critical operations within the
    * library only. The returned array should NOT be modified, as it would corrupt the vector's
-   * state.
+   * state. It is not cloned for performance reasons.
    *
    * @return The raw internal float array.
    */
@@ -51,6 +73,12 @@ public final class FloatVector implements Vector<Float>, Serializable {
     return data[i];
   }
 
+  /**
+   * Gets the primitive float element at the specified index.
+   *
+   * @param i the index of the element to return.
+   * @return the primitive float at the specified position.
+   */
   public float getPrimitive(int i) {
     return data[i];
   }
@@ -64,6 +92,11 @@ public final class FloatVector implements Vector<Float>, Serializable {
     return boxed;
   }
 
+  /**
+   * Returns a clone of the underlying primitive float array.
+   *
+   * @return A new array containing all the elements in this vector.
+   */
   public float[] toPrimitiveArray() {
     return data.clone();
   }
@@ -76,6 +109,13 @@ public final class FloatVector implements Vector<Float>, Serializable {
     throw new UnsupportedOperationException("Addition with non-FloatVector not supported.");
   }
 
+  /**
+   * Adds another FloatVector to this vector, performing element-wise addition.
+   *
+   * @param other The FloatVector to be added to this vector.
+   * @return A new FloatVector that is the sum of this vector and the other.
+   * @throws IllegalArgumentException if the vector lengths are not equal.
+   */
   public FloatVector add(FloatVector other) {
     if (this.length() != other.length()) {
       throw new IllegalArgumentException("Vector lengths must be equal for addition.");
@@ -95,6 +135,13 @@ public final class FloatVector implements Vector<Float>, Serializable {
     throw new UnsupportedOperationException("Multiplication with non-FloatVector not supported.");
   }
 
+  /**
+   * Multiplies this vector by another FloatVector, performing element-wise multiplication.
+   *
+   * @param other The FloatVector to be multiplied by this vector.
+   * @return A new FloatVector that is the product of this vector and the other.
+   * @throws IllegalArgumentException if the vector lengths are not equal.
+   */
   public FloatVector mul(FloatVector other) {
     if (this.length() != other.length()) {
       throw new IllegalArgumentException("Vector lengths must be equal for multiplication.");
@@ -114,6 +161,14 @@ public final class FloatVector implements Vector<Float>, Serializable {
     throw new UnsupportedOperationException("Dot product with non-FloatVector not supported.");
   }
 
+  /**
+   * Computes the dot product of this vector and another FloatVector. This operation is optimized
+   * using the Java Vector API.
+   *
+   * @param other The other FloatVector.
+   * @return The dot product of the two vectors.
+   * @throws IllegalArgumentException if the vector lengths are not equal.
+   */
   public double dot(FloatVector other) {
     if (this.length() != other.length()) {
       throw new IllegalArgumentException("Vector lengths must be equal for dot product.");

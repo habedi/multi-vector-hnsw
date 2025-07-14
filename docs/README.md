@@ -2,21 +2,38 @@
 
 ### How Does It Work?
 
-Multi-Vector HNSW extends the normal HNSW algorithm to support multiple vectors per indexed item.
+Multi-Vector HNSW extends the standard HNSW algorithm to support multiple vectors per indexed item.
 Given that each item can have multiple vectors, the main idea is to define a way to compute the distance between two items based
 on their vectors.
 This is done using a custom distance function that aggregates the distances between corresponding vectors of a pair of items.
 
+The HNSW algorithm is relatively flexible when it comes to distance functions.
+The main requirement is that the function produces scalar values that are consistent with the similarity ordering of items.
+That means, if item A is more similar to a query (item) than item B, then the computed distance from A to the query should be lower than the
+distance from B.
+The distance function does not need to be non-negative or a proper metric (for example, it can violate triangle inequality).
+This flexibility makes it possible to plug in custom distance aggregation strategies (like max, min, weighted average, etc.) without
+breaking the correctness of HNSW’s graph traversal and search logic.
+
+Figure below shows a high-level overview of how the the distance between two items that are represented by multiple vectors is computed.
+
+<div align="center">
+  <picture>
+<img src="assets/images/distance_aggregation.svg" alt="Distance Aggregation Function" width="auto" height="auto" align="center">
+    </picture>
+</div>
+
 ### Adding New Distances
 
-It's very easy to add new distances if you need to extend the library's functionality.
-To do that you need to implement two interfaces:
+It's very easy and straightforward to add new distances if you need to extend the library's functionality.
+To do that, you need to implement two interfaces:
 
 1. [Distance<FloatVector>](../src/main/java/io/github/habedi/mvhnsw/distance/Distance.java): Represents a distance between
    a pair of vectors (see [Cosine.java](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java) for an example).
 2. [MultiVectorDistance](../src/main/java/io/github/habedi/mvhnsw/distance/MultiVectorDistance.java): Represents the aggregated
-   distance between two lists of vectors (
-   see [WeightedAverageDistance.java](../src/main/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistance.java) for an example).
+   distance between two lists of vectors
+(see [WeightedAverageDistance.java](../src/main/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistance.java) for an example
+      implementation).
 
 To add new functionality, you just need to create new classes that implement these interfaces.
 The HNSW builder can accept any class that conforms to
@@ -127,17 +144,17 @@ public class ExtensibilityExample {
     public static void main(String[] args) {
 
         // 1. Create an instance of our new "MinDistance" aggregation,
-        //    using Manhattan as its base distance.
+        //    using Manhattan as its base distance
         var minManhattanDistance = new MinDistance(new Manhattan());
 
-        // 2. Pass the custom distance function directly to the builder.
+        // 2. Pass the custom distance function directly to the builder
         Index index = MultiVectorHNSW.builder()
             .withM(16)
             .withEfConstruction(200)
             .withDistance(minManhattanDistance) // Use the generic `withDistance` method
             .build();
 
-        // 3. Add and search data as usual.
+        // 3. Add and search data as usual
         index.add(1L, List.of(FloatVector.of(1f, 2f), FloatVector.of(10f, 10f)));
         index.add(2L, List.of(FloatVector.of(8f, 8f), FloatVector.of(1f, 3f)));
 
@@ -146,7 +163,7 @@ public class ExtensibilityExample {
 
         // The distance for item 1 is min(|1-2|+|2-2|, |10-9|+|10-9|) = min(1, 2) = 1
         // The distance for item 2 is min(|8-2|+|8-2|, |1-9|+|3-9|) = min(12, 14) = 12
-        // So, item 1 should be the closest.
+        // So, item 1 should be the closest
         System.out.println("Search results:");
         results.forEach(System.out::println);
     }
