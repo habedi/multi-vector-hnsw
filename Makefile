@@ -79,7 +79,7 @@ bench-data: ## Download the benchmark datasets
 
 bench-jar: ## Build the benchmark JAR file
 	@echo "Building benchmark JAR file..."
-	@$(MVN) clean package -Pbenchmark
+	@$(MVN) package -Pbenchmark
 
 bench-run: bench-data bench-jar ## Run benchmarks (e.g., make bench-run LOG_LEVEL=debug)
 	@echo "Running benchmarks with log level $(LOG_LEVEL)..."

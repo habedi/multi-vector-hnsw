@@ -14,6 +14,14 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * A thread-safe, serializable implementation of the {@link Index} interface using a Hierarchical
+ * Navigable Small World (HNSW) graph.
+ *
+ * <p>This class provides a high-performance solution for approximate nearest neighbor search on
+ * multi-vector data. All write operations (add, remove, clear, vacuum) are protected by a write
+ * lock, and all read operations (search, get, size) are protected by a read lock.
+ */
 public final class MultiVectorHNSW implements Index, Serializable {
 
   @Serial private static final long serialVersionUID = 2L;
@@ -23,12 +31,22 @@ public final class MultiVectorHNSW implements Index, Serializable {
   private final int m;
   private final int efConstruction;
   private final double levelLambda;
+
+  /** Stores the vector data for each item ID. */
   private final Map<Long, List<FloatVector>> vectorMap;
+
+  /** Stores the graph structure (nodes and their connections). */
   private final Map<Long, Node> nodes;
+
+  /** A lock to manage concurrent access to the index. */
   private transient ReentrantReadWriteLock lock;
 
+  /**
+   * The entry point for all search and insertion operations, always pointing to the top-most layer.
+   */
   private volatile Node entryPoint;
 
+  /** Private constructor to be called by the {@link Builder}. */
   private MultiVectorHNSW(Builder builder) {
     this.multiVectorDistance = builder.multiVectorDistance;
     this.m = builder.m;
@@ -45,10 +63,23 @@ public final class MultiVectorHNSW implements Index, Serializable {
         this.multiVectorDistance.getClass().getSimpleName());
   }
 
+  /**
+   * Creates a new {@link Builder} to configure and construct a MultiVectorHNSW index.
+   *
+   * @return A new Builder instance.
+   */
   public static Builder builder() {
     return new Builder();
   }
 
+  /**
+   * Loads an index from a file.
+   *
+   * @param path The path to the serialized index file.
+   * @return A new instance of MultiVectorHNSW with the loaded data.
+   * @throws IOException if an I/O error occurs while reading the file.
+   * @throws ClassNotFoundException if the class of a serialized object cannot be found.
+   */
   public static MultiVectorHNSW load(Path path) throws IOException, ClassNotFoundException {
     log.info("Loading index from {}", path);
     try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(path.toFile()))) {
@@ -84,6 +115,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
       int entryPointLevel = currentEntryPoint.level;
       Node nearestNode = currentEntryPoint;
 
+      // Phase 1: Find the nearest neighbor in the upper layers
       for (int l = entryPointLevel; l > level; l--) {
         PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, 1, l);
         if (candidates.isEmpty()) {
@@ -92,6 +124,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
         nearestNode = nodes.get(candidates.peek().id);
       }
 
+      // Phase 2: Insert the new node by connecting it to its neighbors layer by layer
       for (int l = Math.min(level, entryPointLevel); l >= 0; l--) {
         PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, efConstruction, l);
         if (candidates.isEmpty()) {
@@ -120,6 +153,10 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
+  /**
+   * Adds a connection to a target node, ensuring the number of connections does not exceed M. If
+   * the connections are full, it may replace the furthest neighbor.
+   */
   private void addConnection(
       Node targetNode, long newConnectionId, double newConnectionDistance, int level) {
     List<Long> connections = targetNode.getConnections(level);
@@ -146,6 +183,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
+  /** A simple heuristic to select the best neighbors from a candidate set. */
   private List<Neighbor> selectNeighborsHeuristic(PriorityQueue<Neighbor> candidates, int count) {
     return candidates.stream().sorted().limit(count).collect(Collectors.toList());
   }
@@ -181,13 +219,28 @@ public final class MultiVectorHNSW implements Index, Serializable {
         return Collections.emptyList();
       }
 
+      if (currentEntryPoint.deleted) {
+        Optional<Node> newEntryPoint =
+            nodes.values().stream().filter(node -> !node.deleted).findAny();
+        if (newEntryPoint.isEmpty()) {
+          return Collections.emptyList();
+        }
+        currentEntryPoint = newEntryPoint.get();
+        log.debug(
+            "Original entry point was deleted. Using temporary entry point: {}",
+            currentEntryPoint.id);
+      }
+
       Node nearestNode = currentEntryPoint;
       for (int l = currentEntryPoint.level; l > 0; l--) {
         PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, queryVectors, 1, l);
         if (candidates.isEmpty()) {
           break;
         }
-        nearestNode = nodes.get(candidates.peek().id);
+        Node bestCandidateNode = nodes.get(candidates.peek().id);
+        if (bestCandidateNode != null && !bestCandidateNode.deleted) {
+          nearestNode = bestCandidateNode;
+        }
       }
 
       PriorityQueue<Neighbor> results =
@@ -293,6 +346,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
+  /** Performs a search for the nearest neighbors on a single layer of the graph. */
   private PriorityQueue<Neighbor> searchLayer(
       Node entry, List<FloatVector> query, int ef, int level) {
     PriorityQueue<Neighbor> results = new PriorityQueue<>(Collections.reverseOrder());
@@ -346,10 +400,12 @@ public final class MultiVectorHNSW implements Index, Serializable {
     return results;
   }
 
+  /** Assigns a random level for a new node based on a logarithmic distribution. */
   private int assignLevel() {
     return (int) (-Math.log(ThreadLocalRandom.current().nextDouble()) * levelLambda);
   }
 
+  /** Calculates the distance between a query vector list and the vectors of a stored node. */
   private double distance(List<FloatVector> vectors, long nodeId2) {
     List<FloatVector> vectors2 = vectorMap.get(nodeId2);
     if (vectors2 == null) {
@@ -358,6 +414,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
     return multiVectorDistance.compute(vectors, vectors2);
   }
 
+  /** Calculates the distance between two stored nodes. */
   private double distance(long nodeId1, long nodeId2) {
     List<FloatVector> vectors1 = vectorMap.get(nodeId1);
     List<FloatVector> vectors2 = vectorMap.get(nodeId2);
@@ -367,12 +424,14 @@ public final class MultiVectorHNSW implements Index, Serializable {
     return multiVectorDistance.compute(vectors1, vectors2);
   }
 
+  /** Custom deserialization method to re-initialize the transient lock. */
   @Serial
   private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
     in.defaultReadObject();
     this.lock = new ReentrantReadWriteLock();
   }
 
+  /** A private record to represent a neighbor in the graph during a search. */
   private record Neighbor(long id, double distance) implements Comparable<Neighbor> {
     @Override
     public int compareTo(Neighbor other) {
@@ -380,6 +439,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
+  /** A private class representing a node in the HNSW graph. */
   private static class Node implements Serializable {
     @Serial private static final long serialVersionUID = 2L;
     private final long id;
@@ -407,11 +467,21 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
+  /**
+   * A builder for configuring and creating a {@link MultiVectorHNSW} index. This provides a fluent
+   * API for setting parameters.
+   */
   public static class Builder {
     private MultiVectorDistance multiVectorDistance;
     private int m = 16;
     private int efConstruction = 200;
 
+    /**
+     * Sets the maximum number of connections per node per layer (M).
+     *
+     * @param m A positive integer, typically between 5 and 48.
+     * @return This builder instance.
+     */
     public Builder withM(int m) {
       if (m <= 0) {
         throw new IllegalArgumentException("M must be positive.");
@@ -420,6 +490,12 @@ public final class MultiVectorHNSW implements Index, Serializable {
       return this;
     }
 
+    /**
+     * Sets the size of the dynamic list for neighbors during index construction (efConstruction).
+     *
+     * @param efConstruction A positive integer, typically between 64 and 512.
+     * @return This builder instance.
+     */
     public Builder withEfConstruction(int efConstruction) {
       if (efConstruction <= 0) {
         throw new IllegalArgumentException("efConstruction must be positive.");
@@ -428,20 +504,41 @@ public final class MultiVectorHNSW implements Index, Serializable {
       return this;
     }
 
+    /**
+     * Sets a custom distance function that implements {@link MultiVectorDistance}.
+     *
+     * @param distance The distance function to use.
+     * @return This builder instance.
+     */
     public Builder withDistance(MultiVectorDistance distance) {
       this.multiVectorDistance = distance;
       return this;
     }
 
+    /**
+     * Returns a specialized builder for creating a {@link WeightedAverageDistance}.
+     *
+     * @return A new {@link WeightedAverageDistanceBuilder} instance.
+     */
     public WeightedAverageDistanceBuilder withWeightedAverageDistance() {
       return new WeightedAverageDistanceBuilder(this);
     }
 
+    /**
+     * Builds the {@link MultiVectorHNSW} index with the configured parameters.
+     *
+     * @return A new MultiVectorHNSW instance.
+     * @throws NullPointerException if a distance function has not been configured.
+     */
     public MultiVectorHNSW build() {
       Objects.requireNonNull(multiVectorDistance, "A distance function must be configured.");
       return new MultiVectorHNSW(this);
     }
 
+    /**
+     * A specialized builder for configuring a {@link WeightedAverageDistance} as part of the main
+     * builder chain.
+     */
     public static class WeightedAverageDistanceBuilder {
       private final Builder parentBuilder;
       private final List<Distance<FloatVector>> distances = new ArrayList<>();
@@ -451,6 +548,13 @@ public final class MultiVectorHNSW implements Index, Serializable {
         this.parentBuilder = parentBuilder;
       }
 
+      /**
+       * Adds a distance function and its corresponding weight.
+       *
+       * @param distance The {@link Distance} function for a specific vector in the list.
+       * @param weight The weight to assign to this distance's score.
+       * @return This builder instance.
+       */
       public WeightedAverageDistanceBuilder addDistance(
           Distance<FloatVector> distance, float weight) {
         this.distances.add(distance);
@@ -458,6 +562,14 @@ public final class MultiVectorHNSW implements Index, Serializable {
         return this;
       }
 
+      /**
+       * Conditionally adds a distance function and its corresponding weight.
+       *
+       * @param condition If true, the distance and weight are added.
+       * @param distance The {@link Distance} function.
+       * @param weight The weight for the distance.
+       * @return This builder instance.
+       */
       public WeightedAverageDistanceBuilder addDistanceIf(
           boolean condition, Distance<FloatVector> distance, float weight) {
         if (condition) {
@@ -467,6 +579,11 @@ public final class MultiVectorHNSW implements Index, Serializable {
         return this;
       }
 
+      /**
+       * Finalizes the weighted distance configuration and returns to the parent {@link Builder}.
+       *
+       * @return The parent Builder instance.
+       */
       public Builder and() {
         float[] weightsArray = new float[weights.size()];
         for (int i = 0; i < weights.size(); i++) {
