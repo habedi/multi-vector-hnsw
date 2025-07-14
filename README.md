@@ -38,15 +38,12 @@ This can allow for more realistic and flexible searches when dealing with comple
 ### Features
 
 * Simple and extendable API for multi-vector indexing and search
-* low-latency, configurable, and thread-safe HNSW implementation
+* Low-latency, configurable, and thread-safe HNSW implementation
 * Built-in support for cosine, (squared) Euclidean, and dot product distances
 * Bulk inserts and soft delete support
 * Save and load support for persisting indexes to disk
 * Fast distance calculations using SIMD instructions via Java Vector API
 * Compatible with Java 17 and later
-
-> [!IMPORTANT]
-> This project is in its early stages of development, so breaking changes are expected to occur.
 
 ---
 
@@ -100,16 +97,16 @@ public class SimpleExample {
             .and()
             .build();
 
-        // 2. Add items to the index.
+        // 2. Add items to the index
         index.add(1L, List.of(FloatVector.of(1.5f, 2.5f), FloatVector.of(0.9f, 0.1f)));
         index.add(2L, List.of(FloatVector.of(9.1f, 8.2f), FloatVector.of(0.2f, 0.8f)));
         index.add(3L, List.of(FloatVector.of(1.6f, 2.4f), FloatVector.of(0.8f, 0.3f)));
 
-        // 3. Create a query and search for the top 2 nearest neighbors.
+        // 3. Create a query and search for the top 2 nearest neighbors
         List<FloatVector> query = List.of(FloatVector.of(1.4f, 2.6f), FloatVector.of(0.7f, 0.2f));
         List<SearchResult> results = index.search(query, 2);
 
-        // 4. Print the results.
+        // 4. Print the results
         System.out.println("Search results:");
         results.forEach(System.out::println);
     }

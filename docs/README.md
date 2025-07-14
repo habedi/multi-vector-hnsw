@@ -2,15 +2,15 @@
 
 ### How Does It Work?
 
-Multi-Vector HNSW extends the normal HNSW algorithm to support multiple vectors per indexed item.
+Multi-Vector HNSW extends the standard HNSW algorithm to support multiple vectors per indexed item.
 Given that each item can have multiple vectors, the main idea is to define a way to compute the distance between two items based
 on their vectors.
 This is done using a custom distance function that aggregates the distances between corresponding vectors of a pair of items.
 
 ### Adding New Distances
 
-It's very easy to add new distances if you need to extend the library's functionality.
-To do that you need to implement two interfaces:
+It's very easy and straightforward to add new distances if you need to extend the library's functionality.
+To do that, you need to implement two interfaces:
 
 1. [Distance<FloatVector>](../src/main/java/io/github/habedi/mvhnsw/distance/Distance.java): Represents a distance between
    a pair of vectors (see [Cosine.java](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java) for an example).

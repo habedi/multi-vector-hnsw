@@ -1,4 +1,3 @@
-// src/benchmark/java/io/github/habedi/mvhnsw/bench/data/GroundTruth.java
 package io.github.habedi.mvhnsw.bench.data;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
