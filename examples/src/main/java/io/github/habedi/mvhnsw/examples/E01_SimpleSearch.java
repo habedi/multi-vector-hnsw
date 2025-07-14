@@ -8,7 +8,7 @@ import io.github.habedi.mvhnsw.index.SearchResult;
 import java.util.List;
 
 /**
- * Example 1: A simple, minimal example demonstrating the basic workflow.
+ * Example 1: A simple example that shows the basic workflow of how things work.
  *
  * <p>1. Build an index with a single distance metric. 2. Add a few items. 3. Perform a search and
  * print the results.

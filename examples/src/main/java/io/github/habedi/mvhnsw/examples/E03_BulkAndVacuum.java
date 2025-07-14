@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Example 3: Demonstrates bulk operations for efficiency and memory management.
+ * Example 3: Demonstrates bulk insert and delete operations.
  *
  * <p>1. Use `addAll()` to efficiently add multiple items. 2. Use `remove()` to perform soft
  * deletes. 3. Use `vacuum()` to permanently remove deleted items and reclaim space.

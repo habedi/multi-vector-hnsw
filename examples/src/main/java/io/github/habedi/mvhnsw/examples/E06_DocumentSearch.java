@@ -8,7 +8,7 @@ import io.github.habedi.mvhnsw.index.SearchResult;
 import java.util.List;
 
 /**
- * Example 6: A realistic document search scenario.
+ * Example 6: Simulates a document search use case scenario.
  *
  * <p>Documents are indexed with two vectors: one for the title and one for the body. We can weight
  * the title match higher than the body match to improve search relevance.

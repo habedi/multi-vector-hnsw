@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Example 4: Demonstrates the library's extensibility.
+ * Example 4: Demonstrates how to extend the functionality of the library by adding a new distance.
  *
  * <p>We create a completely new distance aggregation strategy (`MaxDistance`) and pass it to the
  * generic `.withDistance()` builder method.
