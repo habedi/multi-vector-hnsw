@@ -113,7 +113,7 @@ public class BenchmarkCLI implements Callable<Integer> {
         .filter(r -> r.getPrimaryResult().getLabel().equals("search"))
         .collect(Collectors.toMap(r -> r.getParams().getParam("distanceMetric"), r -> r));
 
-    // Iterate through the collected search results to ensure a consistent order
+    // Iterate through the collected search results to gurantee a consistent order
     for (String metric : List.of("squared_euclidean", "cosine", "dot_product")) {
       RunResult r = searchResultsByMetric.get(metric);
       if (r == null) {

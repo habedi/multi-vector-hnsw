@@ -3,6 +3,7 @@ package io.github.habedi.mvhnsw.common;
 import static jdk.incubator.vector.FloatVector.SPECIES_PREFERRED;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class FloatVectorTest {
@@ -110,12 +111,10 @@ class FloatVectorTest {
 
   @Test
   void testNormWithSimdAndScalarLoops() {
-    // This test ensures both the vectorized and scalar remainder loops in norm() are executed.
+    // This test makes sure both the vectorized and scalar remainder loops in norm() are executed.
     final int size = SIMD_LANE_COUNT + 1;
     float[] data = new float[size];
-    for (int i = 0; i < size; i++) {
-      data[i] = 1.0f;
-    }
+    Arrays.fill(data, 1.0f);
     FloatVector v = new FloatVector(data);
     assertEquals(Math.sqrt(size), v.norm(), 0.0001);
   }

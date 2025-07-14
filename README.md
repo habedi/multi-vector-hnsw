@@ -129,6 +129,19 @@ Project documentation is available at [docs](docs) directory.
 
 ---
 
+### Examples
+
+Check out the [examples](src/io.github.habedi.mvhnsw.examples) directory for various use cases of the library.
+
+| # | File                                                                                      | Description                                                                                                                         |
+|---|-------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| 1 | [`E01_SimpleSearch.java`](src/io.github.habedi.mvhnsw.examples/E01_SimpleSearch.java)     | A minimal "Hello, World!" for adding a few items and performing a basic search.                                                     |
+| 2 | [`E02_SaveAndLoad.java`](src/io.github.habedi.mvhnsw.examples/E02_SaveAndLoad.java)       | Demonstrates the critical workflow of persisting an index to disk and loading it back.                                              |
+| 3 | [`E03_BulkAndVacuum.java`](src/io.github.habedi.mvhnsw.examples/E03_BulkAndVacuum.java)   | Shows how to efficiently add many items, perform soft deletes, and reclaim memory.                                                  |
+| 4 | [`E04_CustomDistance.java`](src/io.github.habedi.mvhnsw.examples/E04_CustomDistance.java) | Highlights the library's extensibility by creating and using a completely custom distance aggregation strategy.                     |
+| 5 | [`E05_HybridSearch.java`](src/io.github.habedi.mvhnsw.examples/E05_HybridSearch.java)     | A more advanced example simulating a "hybrid" search that combines dense and sparse vectors with different weights.                 |
+| 6 | [`E06_DocumentSearch.java`](src/io.github.habedi.mvhnsw.examples/E06_DocumentSearch.java) | A realistic example of indexing documents with separate embeddings for titles and bodies, weighting them differently for relevance. |
+
 ### Benchmarks
 
 To run benchmarks for Multi-Vector HNSW, you can use the provided [Makefile](Makefile).
@@ -142,6 +155,8 @@ Check out [benches](benches/README.md) directory for more details.
 > You can use `make bench-data` to download the benchmark datasets automatically.
 > However, you need to have [huggingface-cli](https://huggingface.co/docs/huggingface_hub/en/guides/cli) installed.
 > You can set up a Python environment with `huggingface-cli` using the provided [pyproject.toml](pyproject.toml) file.
+
+---
 
 ### Contributing
 
