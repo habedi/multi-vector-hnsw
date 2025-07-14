@@ -33,6 +33,10 @@ package: ## Compile and package the library into a JAR file
 	@echo "Packaging project into JAR file..."
 	@$(MVN) -B package
 
+package-release: ## Compile and package for a release
+	@echo "Packaging project for release..."
+	@$(MVN) -B package -P release
+
 publish: ## Deploys the release artifacts to Maven Central
 	@echo "Deploying to Maven Central..."
 	@$(MVN) -B deploy -P release
