@@ -38,17 +38,11 @@ This can allow for more realistic and flexible searches when dealing with comple
 
 ### Features
 
-Of course. Here is the expanded feature list, keeping your items and adding more based on the library's capabilities.
-
-***
-
-### Features
-
-* Simple, extendable API for multi-vector indexing and search
-* Fast, configurable, thread-safe, HNSW implementation
+* Simple and extendable API for multi-vector indexing and search
+* Fast, configurable, and thread-safe HNSW implementation
 * Built-in support for cosine, (squared) Euclidean, and dot product distances
 * Bulk inserts and soft delete support
-* Save and load functionality for persisting indexes to disk
+* Save and load support for persisting indexes to disk
 * Fast distance calculations using SIMD instructions via Java Vector API
 * Compatible with Java 17 and later
 
@@ -288,11 +282,10 @@ To be added.
 
 ### Benchmarks
 
-To can use `make bench-data` command to download the datasets used for the benchmarks.
-
 Run `BENCHMARK_DATASET=<dataset_name> make bench-run` to run the benchmarks for a specified dataset.
 At the moment, `<dataset_name>` can be one of `se_cs_768`, `se_ds_768`, or `se_pc_768`.
-See the [benches/README.md](benches/README.md) file for more information about the benchmarks and datasets.
+
+See [benches/README.md](benches/README.md) for more information about the benchmarks and datasets.
 
 ### Contributing
 

@@ -10,16 +10,13 @@ import io.github.habedi.mvhnsw.distance.SquaredEuclidean;
 import io.github.habedi.mvhnsw.index.Index;
 import io.github.habedi.mvhnsw.index.MultiVectorHNSW;
 import io.github.habedi.mvhnsw.index.SearchResult;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
-
+import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
@@ -29,53 +26,53 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Benchmark)
-@Fork(value = 0)
+@Fork(value = 1)
 @Warmup(iterations = 2, time = 5)
 @Measurement(iterations = 3, time = 5)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class IndexBenchmark {
 
-  public static final Map<String, BenchmarkResult> benchmarkData = new ConcurrentHashMap<>();
   private static final int K = 100;
-  private final LongAdder hits = new LongAdder();
-  private final LongAdder totalQueries = new LongAdder();
-  @Param({"se_cs_768"})
+
+  @Param({"se_p_768"})
   public String datasetName;
-  @Param("") // Injected by the runner from BenchmarkCLI
+
+  @Param("benches/multi-vector-hnsw-datasets")
   public String dataPath;
+
   @Param({"squared_euclidean", "cosine", "dot_product"})
   public String distanceMetric;
+
   @Param({"16"})
   public int m;
+
   @Param({"200"})
   public int efConstruction;
+
   private BenchmarkData loadedData;
   private Index index;
-  private int trainSize, testSize, numVectors, vectorDim;
   private Map<Long, List<FloatVector>> preConvertedTestData;
   private Map<Long, List<FloatVector>> preConvertedTrainingData;
+  private int numVectors;
 
-  public static String getParamKey(String dataset, String metric, int m, int efc) {
-    return String.format("%s|%s|%d|%d", dataset, metric, m, efc);
+  @State(Scope.Thread)
+  @AuxCounters(AuxCounters.Type.EVENTS)
+  public static class RecallCounters {
+    public long hits;
+    public long totalQueries;
   }
 
   @Setup(Level.Trial)
   public void setupTrial() throws IOException {
     loadedData = BenchmarkData.load(dataPath, datasetName, distanceMetric, K);
-    trainSize = loadedData.trainingData().size();
-    testSize = loadedData.testData().size();
 
     if (!loadedData.trainingData().isEmpty()) {
       List<FloatVector> vectors = loadedData.trainingData().get(0).toFloatVectors();
       numVectors = vectors.size();
-      if (!vectors.isEmpty()) {
-        vectorDim = vectors.get(0).length();
-      }
     }
 
     preConvertedTestData =
@@ -86,19 +83,6 @@ public class IndexBenchmark {
         .collect(Collectors.toMap(TestItem::id, TestItem::toFloatVectors));
 
     index = buildIndex();
-    hits.reset();
-    totalQueries.reset();
-  }
-
-  @TearDown(Level.Trial)
-  public void tearDownTrial() {
-    long totalHits = hits.sum();
-    long totalQueriesCount = totalQueries.sum();
-    double recall =
-      (totalQueriesCount == 0) ? 0 : (double) totalHits / (totalQueriesCount * K);
-    String key = getParamKey(datasetName, distanceMetric, m, efConstruction);
-    benchmarkData.put(
-      key, new BenchmarkResult(recall, trainSize, testSize, numVectors, vectorDim));
   }
 
   @Benchmark
@@ -107,10 +91,10 @@ public class IndexBenchmark {
   }
 
   @Benchmark
-  public void search(Blackhole bh) {
+  public void search(Blackhole bh, RecallCounters counters) {
     for (Map.Entry<Long, List<FloatVector>> entry : preConvertedTestData.entrySet()) {
       List<SearchResult> results = index.search(entry.getValue(), K);
-      updateRecall(entry.getKey(), results, loadedData.groundTruth());
+      updateRecall(entry.getKey(), results, loadedData.groundTruth(), counters);
       bh.consume(results);
     }
   }
@@ -142,16 +126,14 @@ public class IndexBenchmark {
   }
 
   private void updateRecall(
-    long queryId, List<SearchResult> results, Map<Long, Set<Long>> groundTruth) {
+    long queryId,
+    List<SearchResult> results,
+    Map<Long, Set<Long>> groundTruth,
+    RecallCounters counters) {
     Set<Long> truth = groundTruth.get(queryId);
     if (truth != null) {
-      long currentHits = results.stream().filter(r -> truth.contains(r.id())).count();
-      hits.add(currentHits);
-      totalQueries.increment();
+      counters.hits += results.stream().filter(r -> truth.contains(r.id())).count();
+      counters.totalQueries++;
     }
-  }
-
-  public record BenchmarkResult(
-    double recall, int trainSize, int testSize, int numVectors, int vectorDim) {
   }
 }

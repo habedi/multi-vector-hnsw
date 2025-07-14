@@ -81,7 +81,7 @@ bench-jar: ## Build the benchmark JAR file
 	@echo "Building benchmark JAR file..."
 	@$(MVN) clean package -Pbenchmark
 
-bench-run: bench-jar ## Run benchmarks (e.g., make bench-run LOG_LEVEL=debug)
+bench-run: bench-data bench-jar ## Run benchmarks (e.g., make bench-run LOG_LEVEL=debug)
 	@echo "Running benchmarks with log level $(LOG_LEVEL)..."
 	@java --add-modules jdk.incubator.vector -Dmv.hnsw.log.level=$(LOG_LEVEL) \
 	-jar target/benchmarks.jar --dataset $(BENCHMARK_DATASET) --data-path $(BENCHMARK_DATA_DIR) \

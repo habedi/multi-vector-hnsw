@@ -4,24 +4,9 @@ import io.github.habedi.mvhnsw.common.FloatVector;
 import io.github.habedi.mvhnsw.distance.Distance;
 import io.github.habedi.mvhnsw.distance.MultiVectorDistance;
 import io.github.habedi.mvhnsw.distance.WeightedAverageDistance;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serial;
-import java.io.Serializable;
+import java.io.*;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.PriorityQueue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -118,18 +103,11 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
         for (Neighbor neighbor : neighbors) {
           Node neighborNode = nodes.get(neighbor.id);
-          if (neighborNode == null) continue;
-
-          List<Long> neighborConnections = neighborNode.getConnections(l);
-          neighborConnections.add(id);
-
-          if (neighborConnections.size() > m) {
-            // OPTIMIZATION: Instead of a generic prune, we know the new node `id` was just added.
-            // We can reuse the distance we already calculated for it.
-            double newConnDist = distance(neighbor.id, id);
-            pruneConnections(neighborNode, l, newConnDist);
+          if (neighborNode != null) {
+            addConnection(neighborNode, id, neighbor.distance, l);
           }
         }
+        assert candidates.peek() != null;
         nearestNode = nodes.get(candidates.peek().id);
       }
 
@@ -142,59 +120,35 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
-  // OPTIMIZATION: This method is now more efficient.
-  private void pruneConnections(Node node, int level, double newConnectionDistance) {
-    List<Long> connections = node.getConnections(level);
-    long furthestNodeId = -1;
-    double maxDist = newConnectionDistance;
+  private void addConnection(
+      Node targetNode, long newConnectionId, double newConnectionDistance, int level) {
+    List<Long> connections = targetNode.getConnections(level);
 
-    // Find the furthest neighbor among the existing connections
-    for (long connId : connections) {
-      if (connId == node.id) continue; // Skip the newly added connection if it's in the list
-      double dist = distance(node.id, connId);
+    if (connections.size() < m) {
+      connections.add(newConnectionId);
+      return;
+    }
+
+    long furthestNodeId = -1;
+    double maxDist = -1.0;
+
+    for (long currentConnectionId : connections) {
+      double dist = distance(targetNode.id, currentConnectionId);
       if (dist > maxDist) {
         maxDist = dist;
-        furthestNodeId = connId;
+        furthestNodeId = currentConnectionId;
       }
     }
 
-    // If the newly added connection is the furthest, it might be removed,
-    // otherwise, an existing connection is removed.
-    if (furthestNodeId != -1) {
+    if (newConnectionDistance < maxDist) {
       connections.remove(furthestNodeId);
-    } else {
-      // This case can happen if the new connection is not the furthest.
-      // We still need to find and remove the actual furthest node.
-      // For simplicity, we fall back to a full evaluation if the simple path fails.
-      // A more robust implementation would handle this without recalculation.
-      pruneConnections(node, level);
+      connections.add(newConnectionId);
     }
   }
 
-  // General purpose prune method (fallback)
-  private void pruneConnections(Node node, int level) {
-    List<Long> connections = node.getConnections(level);
-    if (connections.size() <= m) return;
-
-    PriorityQueue<Neighbor> neighbors =
-        new PriorityQueue<>(Comparator.comparingDouble(n -> -n.distance));
-    for (long neighborId : connections) {
-      neighbors.add(new Neighbor(neighborId, distance(node.id, neighborId)));
-      if (neighbors.size() > m) {
-        neighbors.poll();
-      }
-    }
-
-    List<Long> newConnections = neighbors.stream().map(n -> n.id).collect(Collectors.toList());
-    node.setConnections(level, newConnections);
-  }
-
-  // OPTIMIZATION: This method now returns a List<Neighbor> to preserve distances.
   private List<Neighbor> selectNeighborsHeuristic(PriorityQueue<Neighbor> candidates, int count) {
     return candidates.stream().sorted().limit(count).collect(Collectors.toList());
   }
-
-  // --- No changes to the methods below this line ---
 
   @Override
   public boolean remove(long id) {
@@ -358,8 +312,11 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
     while (!candidates.isEmpty()) {
       Neighbor candidate = candidates.poll();
-      if (results.size() >= ef && candidate.distance > results.peek().distance) {
-        break;
+      if (results.size() >= ef) {
+        assert results.peek() != null;
+        if (candidate.distance > results.peek().distance) {
+          break;
+        }
       }
 
       Node node = nodes.get(candidate.id);
@@ -374,7 +331,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
             double dist = distance(query, neighborId);
             log.trace(
                 "L{}: Visiting neighbor {} of {}, dist={}", level, neighborId, candidate.id, dist);
-            if (results.size() < ef || dist < results.peek().distance) {
+            if (results.size() < ef || dist < Objects.requireNonNull(results.peek()).distance) {
               Neighbor newNeighbor = new Neighbor(neighborId, dist);
               candidates.add(newNeighbor);
               results.add(newNeighbor);
@@ -507,7 +464,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
           this.distances.add(distance);
           this.weights.add(weight);
         }
-        return this.parentBuilder.withWeightedAverageDistance();
+        return this;
       }
 
       public Builder and() {
