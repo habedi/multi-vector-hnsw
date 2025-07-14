@@ -1,6 +1,6 @@
 ## Benchmarking Multi-Vector HNSW
 
-The code for the benchmarks is in [`src/benchmark`](../src/benchmark/java/io/github/habedi/mvhnsw/bench) directory.
+The code for the benchmarks is in [src/benchmark](../src/benchmark/java/io/github/habedi/mvhnsw/bench) directory.
 The benchmarks primarily measure average build time and search time (in milliseconds) as well as recall@k (with k=100) for a given dataset.
 
 ## Datasets
@@ -19,5 +19,5 @@ huggingface-cli download habedi/multi-vector-hnsw-datasets --repo-type dataset \
 
 Note that the command must be run inside this directory (`benches`).
 
-For convenience, you can use the [`pyproject.toml`](../pyproject.toml) file to set up a Python environment with the
+For convenience, you can use the [pyproject.toml](../pyproject.toml) file to set up a Python environment with the
 required dependencies, including `huggingface_hub`.
