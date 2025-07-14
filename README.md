@@ -12,7 +12,6 @@
 [![Java](https://img.shields.io/badge/java-%3E=17-007ec6?style=flat&labelColor=282c34&logo=java)](https://openjdk.org)
 [![Docs](https://img.shields.io/badge/docs-latest-007ec6?style=flat&labelColor=282c34&logo=readthedocs)](docs)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-007ec6?style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/multi-vector-hnsw)
-[![Release](https://img.shields.io/github/release/habedi/multi-vector-hnsw.svg?style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/multi-vector-hnsw/releases/latest)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.habedi/multi-vector-hnsw?label=maven&style=flat&labelColor=282c34&logo=apache-maven)](https://central.sonatype.com/artifact/io.github.habedi/multi-vector-hnsw)
 
 A Java implementation of HNSW with multi-vector search support
