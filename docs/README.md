@@ -15,13 +15,33 @@ The distance function does not need to be non-negative or a proper metric (for e
 This flexibility makes it possible to plug in custom distance aggregation strategies (like max, min, weighted average, etc.) without
 breaking the correctness of HNSW’s graph traversal and search logic.
 
-Figure below shows a high-level overview of how the the distance between two items that are represented by multiple vectors is computed.
+Figure below shows a high-level overview of how the distance aggregation function works in Multi-Vector HNSW.
 
 <div align="center">
   <picture>
 <img src="assets/images/distance_aggregation.svg" alt="Distance Aggregation Function" width="auto" height="auto" align="center">
     </picture>
 </div>
+
+### Supported Distances
+
+Here’s your **cleaned-up version** of the full section, with typos fixed and the updated table including formulas:
+
+---
+
+### Supported Distance Functions
+
+At the moment, Multi-Vector HNSW supports the following distance functions out of the box:
+
+| # | Distance Function                                                                            | Description                                                 | Formula (for vectors **A**, **B**)        |
+|---|----------------------------------------------------------------------------------------------|-------------------------------------------------------------|-------------------------------------------|
+| 1 | [Cosine](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java)                      | Computes the `1 - cosine similarity` between two vectors    | $1 - \frac{A \cdot B}{\|A\| \cdot \|B\|}$ |
+| 2 | [Squared Euclidean](../src/main/java/io/github/habedi/mvhnsw/distance/SquaredEuclidean.java) | Computes the squared Euclidean distance between two vectors | $\sum_i (A_i - B_i)^2$                    |
+| 3 | [Dot Product](../src/main/java/io/github/habedi/mvhnsw/distance/DotProduct.java)             | Computes the `-1 * dot product` between two vectors         | $- (A \cdot B) = -\sum_i A_i B_i$         |
+
+> [!NOTE]
+> Squared Euclidean distance gives the same ordering as standard Euclidean distance, but it's faster to compute.
+> If you specifically need the Euclidean distance, it's easy to implement, but in most cases, the squared version is a better choice.
 
 ### Adding New Distances
 
@@ -32,8 +52,8 @@ To do that, you need to implement two interfaces:
    a pair of vectors (see [Cosine.java](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java) for an example).
 2. [MultiVectorDistance](../src/main/java/io/github/habedi/mvhnsw/distance/MultiVectorDistance.java): Represents the aggregated
    distance between two lists of vectors
-(see [WeightedAverageDistance.java](../src/main/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistance.java) for an example
-      implementation).
+   (see [WeightedAverageDistance.java](../src/main/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistance.java) for an example
+   implementation).
 
 To add new functionality, you just need to create new classes that implement these interfaces.
 The HNSW builder can accept any class that conforms to
