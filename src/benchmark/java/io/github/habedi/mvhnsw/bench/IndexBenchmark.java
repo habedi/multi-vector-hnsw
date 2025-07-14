@@ -10,12 +10,14 @@ import io.github.habedi.mvhnsw.distance.SquaredEuclidean;
 import io.github.habedi.mvhnsw.index.Index;
 import io.github.habedi.mvhnsw.index.MultiVectorHNSW;
 import io.github.habedi.mvhnsw.index.SearchResult;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -58,13 +60,6 @@ public class IndexBenchmark {
   private Map<Long, List<FloatVector>> preConvertedTestData;
   private Map<Long, List<FloatVector>> preConvertedTrainingData;
   private int numVectors;
-
-  @State(Scope.Thread)
-  @AuxCounters(AuxCounters.Type.EVENTS)
-  public static class RecallCounters {
-    public long hits;
-    public long totalQueries;
-  }
 
   @Setup(Level.Trial)
   public void setupTrial() throws IOException {
@@ -135,5 +130,12 @@ public class IndexBenchmark {
       counters.hits += results.stream().filter(r -> truth.contains(r.id())).count();
       counters.totalQueries++;
     }
+  }
+
+  @State(Scope.Thread)
+  @AuxCounters(AuxCounters.Type.EVENTS)
+  public static class RecallCounters {
+    public long hits;
+    public long totalQueries;
   }
 }

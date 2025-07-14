@@ -16,7 +16,7 @@ BENCHMARK_DATASET ?= se_p_768
 
 # Phony targets don't represent files
 .PHONY: help build package publish test format format-check lint clean setup-hooks \
- test-hooks bench-data bench-jar bench-run publish-snap
+ test-hooks bench-data bench-jar bench-run
 
 help: ## Show this help message
 	@echo "Usage: make <target>"
@@ -36,10 +36,6 @@ package: ## Compile and package the library into a JAR file
 publish: ## Deploys the release artifacts to Maven Central
 	@echo "Deploying to Maven Central..."
 	@$(MVN) -B deploy -P release
-
-publish-snap: ## Deploys the snapshot artifacts to Maven Central
-	@echo "Deploying snapshot to Maven Central..."
-	@$(MVN) -B deploy
 
 test: ## Run tests (e.g., make test LOG_LEVEL=debug)
 	@echo "Running tests with log level: $(LOG_LEVEL)..."

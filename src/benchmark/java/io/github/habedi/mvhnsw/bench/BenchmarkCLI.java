@@ -1,12 +1,14 @@
 package io.github.habedi.mvhnsw.bench;
 
 import io.github.habedi.mvhnsw.bench.data.BenchmarkData;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openjdk.jmh.results.Result;

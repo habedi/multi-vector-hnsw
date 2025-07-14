@@ -6,7 +6,7 @@
 
   <groupId>io.github.habedi</groupId>
   <artifactId>multi-vector-hnsw</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.2.0-beta.1</version>
   <packaging>jar</packaging>
 
   <name>Multi-Vector HNSW</name>
@@ -42,18 +42,14 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <java.version>17</java.version>
-
     <junit.jupiter.version>5.10.2</junit.jupiter.version>
     <log4j.version>2.23.1</log4j.version>
     <jmh.version>1.37</jmh.version>
     <picocli.version>4.7.6</picocli.version>
     <jackson.version>2.17.1</jackson.version>
-
-    <maven.clean.plugin.version>3.3.2</maven.clean.plugin.version>
-    <maven.resources.plugin.version>3.3.1</maven.resources.plugin.version>
     <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
     <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
-    <maven.jar.plugin.version>3.4.1</maven.jar.plugin.version>
+    <maven.deploy.plugin.version>3.1.2</maven.deploy.plugin.version>
     <maven.source.plugin.version>3.3.1</maven.source.plugin.version>
     <maven.javadoc.plugin.version>3.6.3</maven.javadoc.plugin.version>
     <build-helper.maven.plugin.version>3.6.0</build-helper.maven.plugin.version>
@@ -62,6 +58,7 @@
     <spotless.maven.plugin.version>2.43.0</spotless.maven.plugin.version>
     <maven.checkstyle.plugin.version>3.3.1</maven.checkstyle.plugin.version>
     <checkstyle.version>10.17.0</checkstyle.version>
+    <central.publishing.plugin.version>0.8.0</central.publishing.plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -93,7 +90,6 @@
       <artifactId>log4j-core</artifactId>
       <scope>runtime</scope>
     </dependency>
-
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
@@ -207,17 +203,6 @@
     </plugins>
   </build>
 
-  <distributionManagement>
-    <snapshotRepository>
-      <id>ossrh</id>
-      <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-    </snapshotRepository>
-    <repository>
-      <id>ossrh</id>
-      <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-    </repository>
-  </distributionManagement>
-
   <profiles>
     <profile>
       <id>benchmark</id>
@@ -302,8 +287,7 @@
                 <configuration>
                   <finalName>benchmarks</finalName>
                   <transformers>
-                    <transformer
-                      implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                       <mainClass>io.github.habedi.mvhnsw.bench.BenchmarkCLI</mainClass>
                     </transformer>
                   </transformers>
@@ -322,11 +306,28 @@
         </plugins>
       </build>
     </profile>
-
     <profile>
       <id>release</id>
       <build>
         <plugins>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>${central.publishing.plugin.version}</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <autoPublish>true</autoPublish>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <version>${maven.deploy.plugin.version}</version>
+            <configuration>
+              <skip>true</skip>
+            </configuration>
+          </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
@@ -354,20 +355,8 @@
               </execution>
             </executions>
           </plugin>
-          <plugin>
-            <groupId>org.sonatype.plugins</groupId>
-            <artifactId>nexus-staging-maven-plugin</artifactId>
-            <version>1.7.0</version>
-            <extensions>true</extensions>
-            <configuration>
-              <serverId>ossrh</serverId>
-              <nexusUrl>https://ossrh-staging-api.central.sonatype.com/service/local/</nexusUrl>
-              <autoReleaseAfterClose>true</autoReleaseAfterClose>
-            </configuration>
-          </plugin>
         </plugins>
       </build>
     </profile>
   </profiles>
-
 </project>
