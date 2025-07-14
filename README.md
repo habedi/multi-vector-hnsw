@@ -68,7 +68,10 @@ dependencies {
 }
 ```
 
-#### Simple Example
+Alternatively, you can manually download the latest JAR files directly from the
+[releases](https://github.com/habedi/multi-vector-hnsw/releases) page and add it to your classpath.
+
+#### Basic Usage
 
 Below is an example of how to create an index, add items with multiple vectors, and perform a search.
 
@@ -125,22 +128,22 @@ SearchResult[id=1, score=0.08800000000000002]
 
 ### Documentation
 
-Project documentation is available at [docs](docs) directory.
+Project documentation is available at the [docs](docs) directory.
 
 ---
 
 ### Examples
 
-Check out the [examples](src/io.github.habedi.mvhnsw.examples) directory for various use cases of the library.
+Check out the [examples](src/main/java/io/github/habedi/mvhnsw/examples) directory for various use cases of the library.
 
-| # | File                                                                                      | Description                                                                                                                         |
-|---|-------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | [`E01_SimpleSearch.java`](src/io.github.habedi.mvhnsw.examples/E01_SimpleSearch.java)     | A minimal "Hello, World!" for adding a few items and performing a basic search.                                                     |
-| 2 | [`E02_SaveAndLoad.java`](src/io.github.habedi.mvhnsw.examples/E02_SaveAndLoad.java)       | Demonstrates the critical workflow of persisting an index to disk and loading it back.                                              |
-| 3 | [`E03_BulkAndVacuum.java`](src/io.github.habedi.mvhnsw.examples/E03_BulkAndVacuum.java)   | Shows how to efficiently add many items, perform soft deletes, and reclaim memory.                                                  |
-| 4 | [`E04_CustomDistance.java`](src/io.github.habedi.mvhnsw.examples/E04_CustomDistance.java) | Highlights the library's extensibility by creating and using a completely custom distance aggregation strategy.                     |
-| 5 | [`E05_HybridSearch.java`](src/io.github.habedi.mvhnsw.examples/E05_HybridSearch.java)     | A more advanced example simulating a "hybrid" search that combines dense and sparse vectors with different weights.                 |
-| 6 | [`E06_DocumentSearch.java`](src/io.github.habedi.mvhnsw.examples/E06_DocumentSearch.java) | A realistic example of indexing documents with separate embeddings for titles and bodies, weighting them differently for relevance. |
+| # | File                                                                                                | Description                                                                                        |
+|---|-----------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| 1 | [`E01_SimpleSearch.java`](src/main/java/io/github/habedi/mvhnsw/examples/E01_SimpleSearch.java)     | A very simple example                                                                              |
+| 2 | [`E02_SaveAndLoad.java`](src/main/java/io/github/habedi/mvhnsw/examples/E02_SaveAndLoad.java)       | Demonstrates how to save and load an index                                                         |
+| 3 | [`E03_BulkAndVacuum.java`](src/main/java/io/github/habedi/mvhnsw/examples/E03_BulkAndVacuum.java)   | Shows how to use bulk insert and delete APIs                                                       |
+| 4 | [`E04_CustomDistance.java`](src/main/java/io/github/habedi/mvhnsw/examples/E04_CustomDistance.java) | Demonstrates how to define and use a custom distance function                                      |
+| 5 | [`E05_HybridSearch.java`](src/main/java/io/github/habedi/mvhnsw/examples/E05_HybridSearch.java)     | Performs hybrid search using dense and sparse vectors with different weights                       |
+| 6 | [`E06_DocumentSearch.java`](src/main/java/io/github/habedi/mvhnsw/examples/E06_DocumentSearch.java) | Indexes documents using separate embeddings for titles and bodies, with different weights for each |
 
 ### Benchmarks
 
@@ -149,7 +152,7 @@ To run benchmarks for Multi-Vector HNSW, you can use the provided [Makefile](Mak
 Execute `BENCHMARK_DATASET=<dataset_name> make bench-run` to start the benchmarks for a specified dataset.
 At the moment, `<dataset_name>` can be one of `se_cs_768`, `se_ds_768`, or `se_pc_768`.
 
-Check out [benches](benches/README.md) directory for more details.
+Check out the [benches](benches) directory for more details.
 
 > [!NOTE]
 > You can use `make bench-data` to download the benchmark datasets automatically.
