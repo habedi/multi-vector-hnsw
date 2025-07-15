@@ -72,7 +72,7 @@ These are set when creating the index using the builder.
     * **What it is:** The maximum number of connections (or neighbors) each node will have per layer in the graph.
     * **Impact:** A higher `M` creates a denser graph. This generally improves search accuracy (recall) but also increases the index build
       time and memory usage.
-    * **Typical Values:** A good range is between `5` and `48`; default is `16`.
+    * **Typical Values:** A good range is between `5` and `48`.
 
 * `withEfConstruction(int efConstruction)`
 
@@ -80,13 +80,13 @@ These are set when creating the index using the builder.
       track of the `efConstruction` best candidates found so far to select the final `M` connections from.
     * **Impact:** A larger `efConstruction` leads to a higher-quality index with better search recall, but it significantly slows down the
       indexing process. This value should always be larger than `M`.
-    * **Typical Values:** A good range is between `64` and `512`; default is `200`.
+    * **Typical Values:** A good range is between `64` and `512`.
 
 #### Search-Time Parameter
 
 This is set during each search operation.
 
-* `efSearch` (in `search(query, k, efSearch)`)
+* `efSearch` (in `search(List<FloatVector> queryVectors, int k, int efSearch)`)
     * **What it is:** The size of the dynamic candidate list used during a search.
     * **Impact:** This is the most important parameter for tuning the search-time trade-off between speed and accuracy. A larger `efSearch`
       value will result in higher recall at the cost of a slower query. It must be greater than or equal to `k` (the number of neighbors you

@@ -1,6 +1,7 @@
 ## Benchmarking Multi-Vector HNSW
 
 The code for the benchmarks is in [src/benchmark](../src/benchmark/java/io/github/habedi/mvhnsw/bench) directory.
+Check out [BenchmarkCLI.java](../src/benchmark/java/io/github/habedi/mvhnsw/bench/BenchmarkCLI.java) for default parameters and options.
 The benchmarks primarily measure average build time and search time (in milliseconds) as well as recall@k (with k=100) for a given dataset.
 
 Execute `make bench-run BENCHMARK_DATASET=<dataset_name>` to start the benchmarks for a specified dataset.
@@ -10,9 +11,9 @@ The commands below will run the benchmarks for all three datasets.
 (They must be run inside the root directory of the project.)
 
 ```shell
-make bench-run BENCHMARK_DATASET=se_cs_768
-make bench-run BENCHMARK_DATASET=se_ds_768
-make bench-run BENCHMARK_DATASET=se_p_768
+make bench-run BENCHMARK_DATASET=se_cs_768 ARGS="--ef-search=100"
+make bench-run BENCHMARK_DATASET=se_ds_768 ARGS="--ef-search=100"
+make bench-run BENCHMARK_DATASET=se_p_768 ARGS="--ef-search=100"
 ```
 
 > [!NOTE]
