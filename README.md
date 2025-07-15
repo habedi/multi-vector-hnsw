@@ -50,7 +50,7 @@ If you are using Maven, add this dependency to your `pom.xml`:
 <dependency>
     <groupId>io.github.habedi</groupId>
     <artifactId>multi-vector-hnsw</artifactId>
-    <version>0.2.0-beta</version>
+    <version>0.2.1-beta</version>
 </dependency>
 ```
 
@@ -58,7 +58,7 @@ If you are using Gradle, add this dependency to your `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.github.habedi:multi-vector-hnsw:0.2.0-beta'
+    implementation 'io.github.habedi:multi-vector-hnsw:0.2.1-beta'
 }
 ```
 
