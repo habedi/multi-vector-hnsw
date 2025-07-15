@@ -3,41 +3,90 @@
 ### How Does It Work?
 
 Multi-Vector HNSW extends the standard HNSW algorithm to support multiple vectors per indexed item.
-Given that each item can have multiple vectors, the main idea is to define a way to compute the distance between two items based
-on their vectors.
+Given that each item can have multiple vectors, the main idea is to define a way to compute the distance between two items based on their
+vectors.
 This is done using a custom distance function that aggregates the distances between corresponding vectors of a pair of items.
 
 The HNSW algorithm is relatively flexible when it comes to distance functions.
 The main requirement is that the function produces scalar values that are consistent with the similarity ordering of items.
 That means, if item A is more similar to a query (item) than item B, then the computed distance from A to the query should be lower than the
 distance from B.
-The distance function does not need to be non-negative or a proper metric (for example, it can violate triangle inequality).
+The distance function does not need to be non-negative or a proper metric (for example, it can violate the triangle inequality).
 This flexibility makes it possible to plug in custom distance aggregation strategies (like max, min, weighted average, etc.) without
-breaking the correctness of HNSW’s graph traversal and search logic.
+breaking the correctness of HNSW's graph traversal and search logic.
 
-Figure below shows a high-level overview of how the distance aggregation function works in Multi-Vector HNSW.
+The figure below shows a high-level overview of how the distance aggregation function works in Multi-Vector HNSW.
 
 <div align="center">
-  <picture>
+<picture>
 <img src="assets/images/distance_aggregation.svg" alt="Distance Aggregation Function" width="auto" height="auto" align="center">
-    </picture>
+</picture>
 </div>
 
-### Supported Distances
+### About the HNSW Algorithm
 
-Here’s your **cleaned-up version** of the full section, with typos fixed and the updated table including formulas:
+[Hierarchical Navigable Small World (or HNSW)](https://arxiv.org/abs/1603.09320) is an algorithm for approximate nearest neighbor search.
+It's designed to find items in a high-dimensional space that are close to a given query point, without having to compare the query to every
+single item in the dataset.
+HNSW builds a special graph data structure to make this search process incredibly fast and efficient.
 
----
+Here's how it works at a high level:
+
+1. **The Graph Structure**: HNSW organizes data points (the vectors) into a multi-layered graph. Each data point exists as a **node** in
+   this graph.
+2. **Layers**: The bottom layer (Layer 0) contains *all* the data points. Each subsequent layer above it contains a smaller, sparser subset
+   of the points from the layer below. Think of these upper layers as "express lanes" or highways that allow for long-distance traversals
+   across the graph.
+3. **Insertion**: When a new item is added, it's assigned a random maximum layer (`level`). This `level` is chosen from a probability
+   distribution that heavily favors lower layers, ensuring the hierarchy remains balanced. The new node is then inserted into the graph from
+   the top layer down to Layer 0. At each layer, it connects to the `M` nearest neighbors it can find.
+4. **Search**: A search starts at an entry point in the **topmost layer**. The algorithm greedily traverses the graph, always moving to the
+   neighbor closest to the query vector. Once it can't find a closer neighbor at the current layer, it drops down to the layer below and
+   continues the search. This process repeats until it reaches the bottom layer (Layer 0), where a final, more detailed search is performed
+   to find the `k` nearest neighbors from a set of candidates.
+
+This layered structure is what makes HNSW so fast.
+The upper layers quickly navigate to the right region of the graph, and the lower layers perform the fine-grained search to pinpoint the
+best matches.
+
+In this library, the implementation is centered around
+the [MultiVectorHNSW](../src/main/java/io/github/habedi/mvhnsw/index/MultiVectorHNSW.java) class,
+which manages the graph nodes, vector storage, and concurrency control using a `ReentrantReadWriteLock` to allow for safe, parallel search
+operations.
+
+#### Index Parameters and Tuning
+
+The performance and accuracy of the HNSW index are controlled by a few parameters that you set during construction.
+Finding the right balance is key to getting the results you need.
+
+* `withM(int m)`
+
+    * **What it is:** The maximum number of connections (or neighbors) each node will have per layer in the graph.
+    * **Impact:** A higher `M` creates a denser graph. This generally improves search accuracy (recall) but also
+      increases the index build time and memory usage.
+    * **Typical Values:** A good range is between `5` and `48`; default is `16`.
+
+* `withEfConstruction(int efConstruction)`
+
+    * **What it is:** The size of the dynamic candidate list used during index construction. When adding a new node,
+      the algorithm keeps track of the `efConstruction` best candidates found so far to select the final `M` connections from.
+    * **Impact:** A larger `efConstruction` leads to a higher-quality index with better search recall, but it
+      significantly slows down the indexing process. This value should always be larger than `M`.
+    * **Typical Values:** A good range is between `64` and `512`; default is `200`.
+
+There is a trade-off between search speed and recall, which is managed by these parameters.
+For higher recall, you should increase `M` and `efConstruction`.
+For faster indexing and lower memory usage, you should keep them lower.
 
 ### Supported Distance Functions
 
 At the moment, Multi-Vector HNSW supports the following distance functions out of the box:
 
-| # | Distance Function                                                                            | Description                                                 | Formula (for vectors **A**, **B**)        |
-|---|----------------------------------------------------------------------------------------------|-------------------------------------------------------------|-------------------------------------------|
-| 1 | [Cosine](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java)                      | Computes the `1 - cosine similarity` between two vectors    | $1 - \frac{A \cdot B}{\|A\| \cdot \|B\|}$ |
-| 2 | [Squared Euclidean](../src/main/java/io/github/habedi/mvhnsw/distance/SquaredEuclidean.java) | Computes the squared Euclidean distance between two vectors | $\sum_i (A_i - B_i)^2$                    |
-| 3 | [Dot Product](../src/main/java/io/github/habedi/mvhnsw/distance/DotProduct.java)             | Computes the `-1 * dot product` between two vectors         | $- (A \cdot B) = -\sum_i A_i B_i$         |
+| # | Distance Function                                                                            | Formula (for vectors **A**, **B**)        | Range   | Description                                                 |
+|---|----------------------------------------------------------------------------------------------|-------------------------------------------|---------|-------------------------------------------------------------|
+| 1 | [Cosine](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java)                      | $1 - \frac{A \cdot B}{\|A\| \cdot \|B\|}$ | [0, 2]  | Computes the `1 - cosine similarity` between two vectors    |
+| 2 | [Squared Euclidean](../src/main/java/io/github/habedi/mvhnsw/distance/SquaredEuclidean.java) | $\sum_i (A_i - B_i)^2$                    | [0, ∞)  | Computes the squared Euclidean distance between two vectors |
+| 3 | [Dot Product](../src/main/java/io/github/habedi/mvhnsw/distance/DotProduct.java)             | $- (A \cdot B) = -\sum_i A_i B_i$         | [-∞, 0] | Computes the `-1 * dot product` between two vectors         |
 
 > [!NOTE]
 > Squared Euclidean distance gives the same ordering as standard Euclidean distance, but it's faster to compute.
@@ -48,26 +97,25 @@ At the moment, Multi-Vector HNSW supports the following distance functions out o
 It's very easy and straightforward to add new distances if you need to extend the library's functionality.
 To do that, you need to implement two interfaces:
 
-1. [Distance<FloatVector>](../src/main/java/io/github/habedi/mvhnsw/distance/Distance.java): Represents a distance between
-   a pair of vectors (see [Cosine.java](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java) for an example).
-2. [MultiVectorDistance](../src/main/java/io/github/habedi/mvhnsw/distance/MultiVectorDistance.java): Represents the aggregated
-   distance between two lists of vectors
-   (see [WeightedAverageDistance.java](../src/main/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistance.java) for an example
-   implementation).
+1. [Distance<FloatVector>](../src/main/java/io/github/habedi/mvhnsw/distance/Distance.java): Represents a
+   distance between a pair of vectors
+   (see [Cosine.java](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java) for an example).
+2. [MultiVectorDistance](../src/main/java/io/github/habedi/mvhnsw/distance/MultiVectorDistance.java):
+   Represents the aggregated distance between two lists of vectors
+   (see [WeightedAverageDistance.java](../src/main/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistance.java)
+   for an example implementation).
 
-To add new functionality, you just need to create new classes that implement these interfaces.
-The HNSW builder can accept any class that conforms to
-the [MultiVectorDistance](../src/main/java/io/github/habedi/mvhnsw/distance/MultiVectorDistance.java) interface.
+To add new functionality, you just need to create new classes that implement these interfaces. The HNSW builder can accept any class that
+conforms to the [MultiVectorDistance](../src/main/java/io/github/habedi/mvhnsw/distance/MultiVectorDistance.java) interface.
 
 #### Example: Adding Manhattan and Min-Distance
 
-Here is a complete, runnable example that demonstrates how to add a new `Manhattan` distance and a new `MinDistance` aggregation
-strategy.
+Here is a complete, runnable example that demonstrates how to add a new `Manhattan` distance and a new `MinDistance` aggregation strategy.
 
 ##### 1\. Implement `Manhattan` Distance
 
-Create a `Manhattan.java` class that implements the `Distance<FloatVector>` interface.
-This calculates the sum of absolute differences between vector components.
+Create a `Manhattan.java` class that implements the `Distance<FloatVector>` interface. This calculates the sum of absolute differences
+between vector components.
 
 ```java
 package io.github.habedi.mvhnsw.distance;
@@ -98,14 +146,15 @@ public class Manhattan implements Distance<FloatVector>, Serializable {
     public String getName() {
         return "Manhattan";
     }
+
 }
+
 ```
 
 ##### 2\. Implement `MinDistance` (Aggregated) Distance
 
-Create a `MinDistance.java` class that implements the `MultiVectorDistance` interface.
-Instead of a weighted average, this class will find the *minimum* distance among all vector pairs, using a base distance function
-like `Manhattan`.
+Create a `MinDistance.java` class that implements the `MultiVectorDistance` interface. Instead of a weighted average, this class will find
+the *minimum* distance among all vector pairs, using a base distance function like `Manhattan`.
 
 ```java
 package io.github.habedi.mvhnsw.distance;
