@@ -147,3 +147,4 @@ Thumbs.db
 ground_truth_*.json
 benches/data/
 benches/multi-vector-hnsw-datasets/
+uv.lock

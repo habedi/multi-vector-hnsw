@@ -5,6 +5,7 @@ import io.github.habedi.mvhnsw.distance.SquaredEuclidean;
 import io.github.habedi.mvhnsw.index.Index;
 import io.github.habedi.mvhnsw.index.MultiVectorHNSW;
 import io.github.habedi.mvhnsw.index.SearchResult;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,13 +22,13 @@ public class E02_SaveAndLoad {
     // --- 1. Build and Populate an Index ---
     System.out.println("Building the initial index...");
     Index originalIndex =
-        MultiVectorHNSW.builder()
-            .withM(16)
-            .withEfConstruction(200)
-            .withWeightedAverageDistance()
-            .addDistance(new SquaredEuclidean(), 1.0f)
-            .and()
-            .build();
+      MultiVectorHNSW.builder()
+        .withM(16)
+        .withEfConstruction(200)
+        .withWeightedAverageDistance()
+        .addDistance(new SquaredEuclidean(), 1.0f)
+        .and()
+        .build();
 
     originalIndex.add(1L, List.of(FloatVector.of(1.0f, 2.0f)));
     originalIndex.add(2L, List.of(FloatVector.of(5.0f, 6.0f)));
@@ -46,7 +47,7 @@ public class E02_SaveAndLoad {
     // --- 4. Verify the Loaded Index Works ---
     System.out.println("\nSearching in the loaded index to verify it's functional...");
     List<FloatVector> query = List.of(FloatVector.of(1.1f, 2.1f));
-    List<SearchResult> results = loadedIndex.search(query, 1);
+    List<SearchResult> results = loadedIndex.search(query, 1, 10);
 
     System.out.println("Search results:");
     results.forEach(System.out::println);

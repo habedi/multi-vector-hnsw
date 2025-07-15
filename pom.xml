@@ -6,7 +6,7 @@
 
   <groupId>io.github.habedi</groupId>
   <artifactId>multi-vector-hnsw</artifactId>
-  <version>0.1.4-beta</version>
+  <version>0.2.0-beta</version>
   <packaging>jar</packaging>
 
   <name>Multi-Vector HNSW</name>

@@ -51,9 +51,11 @@ public interface Index {
    *
    * @param queryVectors The list of vectors representing the query.
    * @param k The number of nearest neighbors to return.
+   * @param efSearch The size of the dynamic candidate list for the search. A larger value leads to
+   *     more accurate results at the cost of performance. Must be >= k.
    * @return A list of {@link SearchResult}s, sorted by distance in ascending order.
    */
-  List<SearchResult> search(List<FloatVector> queryVectors, int k);
+  List<SearchResult> search(List<FloatVector> queryVectors, int k, int efSearch);
 
   /**
    * Retrieves the list of vectors for a given item ID.

@@ -54,12 +54,13 @@ public final class FloatVector implements Vector<Float>, Serializable {
    * Provides direct, read-only access to the internal float array.
    *
    * <p><b>Warning:</b> This method is intended for performance-critical operations within the
-   * library only. The returned array should NOT be modified, as it would corrupt the vector's
-   * state. It is not cloned for performance reasons.
+   * library only. It breaks the class's immutability guarantee by returning a reference to the
+   * internal array. The returned array should NOT be modified. It is not cloned for performance
+   * reasons.
    *
    * @return The raw internal float array.
    */
-  public float[] getRawData() {
+  public float[] getUnsafeRawData() {
     return data;
   }
 
@@ -175,7 +176,7 @@ public final class FloatVector implements Vector<Float>, Serializable {
     }
 
     float[] a = this.data;
-    float[] b = other.getRawData();
+    float[] b = other.getUnsafeRawData();
     double sum = 0.0;
     int bound = SPECIES.loopBound(a.length);
     int i = 0;

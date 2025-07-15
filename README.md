@@ -9,10 +9,9 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/habedi/multi-vector-hnsw/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/multi-vector-hnsw/actions/workflows/tests.yml)
 [![Code Coverage](https://img.shields.io/codecov/c/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codecov)](https://codecov.io/gh/habedi/multi-vector-hnsw)
 [![Code Quality](https://img.shields.io/codefactor/grade/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/multi-vector-hnsw)
-[![Java](https://img.shields.io/badge/java-%3E=17-007ec6?style=flat&labelColor=282c34&logo=java)](https://openjdk.org)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.habedi/multi-vector-hnsw?label=maven&style=flat&labelColor=282c34&logo=apache-maven)](https://central.sonatype.com/artifact/io.github.habedi/multi-vector-hnsw)
 [![Docs](https://img.shields.io/badge/docs-latest-007ec6?style=flat&labelColor=282c34&logo=readthedocs)](docs)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-007ec6?style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/multi-vector-hnsw)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.habedi/multi-vector-hnsw?label=maven&style=flat&labelColor=282c34&logo=apache-maven)](https://central.sonatype.com/artifact/io.github.habedi/multi-vector-hnsw)
 
 A Java implementation of HNSW with multi-vector search support
 
@@ -20,25 +19,20 @@ A Java implementation of HNSW with multi-vector search support
 
 ---
 
-Multi-Vector HNSW is a Java library that implements
-the [Hierarchical Navigable Small World (HNSW)](https://arxiv.org/abs/1603.09320) algorithm with support for multi-vector
-indexing.
-It lets you index and search objects represented by multiple high-dimensional vectors using common distance functions like
-Euclidean, cosine, and dot product.
+Multi-Vector HNSW is a Java library that implements the [Hierarchical Navigable Small World (HNSW)](https://arxiv.org/abs/1603.09320)
+algorithm with built-in support for multi-vector indexing.
+It lets you index and search objects represented by multiple high-dimensional vectors, using standard distance functions like Euclidean,
+cosine, and dot product.
 
-In many real-world applications, a single vector isn’t enough to represent an object.
-For example, an image might have different feature vectors for color, shape, and texture; a document might have separate
-embeddings for different parts like the title, body, and summary.
-Most HNSW implementations only support one vector per object.
-This makes them less useful when working with complex objects that are better represented by multiple vectors.
-Multi-Vector HNSW solves this by letting each object be indexed with multiple vectors.
-It also lets you choose how to define the distances between objects using a custom aggregated distance function.
-This can allow for more realistic and flexible searches when dealing with complex objects.
+Most vector search libraries assume every object has a single embedding.
+But in real-world use cases (like document search, multi-modal AI, or hybrid dense/sparse setups) you often have multiple embeddings per
+item.
+This library extends HNSW to support that: multi-vector indexing, custom distance aggregation, and a clean Java API.
 
 ### Features
 
 * Simple and extendable API for multi-vector indexing and search
-* Low-latency, configurable, and thread-safe HNSW implementation
+* Fast, configurable, and thread-safe HNSW implementation
 * Built-in support for cosine, (squared) Euclidean, and dot product distances
 * Bulk inserts and soft delete support
 * Save and load support for persisting indexes to disk
@@ -56,7 +50,7 @@ If you are using Maven, add this dependency to your `pom.xml`:
 <dependency>
     <groupId>io.github.habedi</groupId>
     <artifactId>multi-vector-hnsw</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.0-beta</version>
 </dependency>
 ```
 
@@ -64,7 +58,7 @@ If you are using Gradle, add this dependency to your `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.github.habedi:multi-vector-hnsw:0.2.0'
+    implementation 'io.github.habedi:multi-vector-hnsw:0.2.0-beta'
 }
 ```
 
@@ -89,7 +83,7 @@ public class SimpleExample {
     public static void main(String[] args) {
 
         // 1. Configure the index for items with two vectors.
-        // We'll weight the first vector (Euclidean distance) as 70% important
+        // We'll weight the first vector (squared Euclidean distance) as 70% important
         // and the second vector (Cosine distance) as 30% important.
         Index index = MultiVectorHNSW.builder()
             .withM(16)
@@ -107,7 +101,8 @@ public class SimpleExample {
 
         // 3. Create a query and search for the top 2 nearest neighbors
         List<FloatVector> query = List.of(FloatVector.of(1.4f, 2.6f), FloatVector.of(0.7f, 0.2f));
-        List<SearchResult> results = index.search(query, 2);
+        // The third parameter, `efSearch`, controls the accuracy/speed trade-off.
+        List<SearchResult> results = index.search(query, 2, 20);
 
         // 4. Print the results
         System.out.println("Search results:");
@@ -120,8 +115,8 @@ Output:
 
 ```shell
 Search results:
-SearchResult[id=3, score=0.06800000000000003] # Smaller score means closer match
-SearchResult[id=1, score=0.08800000000000002]
+SearchResult[id=1, score=0.018205724472503872] # Smaller score means closer match
+SearchResult[id=3, score=0.05697077252055386]
 ```
 
 ---
@@ -139,6 +134,36 @@ Check out the [examples](examples) directory for more usage examples.
 ### Benchmarks
 
 See the [benches](benches) directory for information on how to run project benchmarks.
+
+#### Sample Results
+
+The table below shows benchmark results for different distance functions using the
+[`se_cs_768`](https://huggingface.co/datasets/habedi/multi-vector-hnsw-datasets)
+dataset on a machine with 32GB RAM and an AMD Ryzen 5 7600X CPU, running on GraalVM JDK 21.
+
+Each item is represented by three 768-dimensional vectors. The index was built with `M=16` and `efConstruction=200`.
+Searches were performed with `efSearch=100` to find the top 100 nearest neighbors.
+
+For each distance function, we report:
+
+* **Average Query Time:** The average time in milliseconds to perform a single search.
+* **Recall@100:** How many of the top 100 true nearest neighbors were found, on average.
+
+Distances are aggregated using a uniformly-weighted average across the three vectors.
+
+In this setup, the average query time is **~1.17–1.37 ms**, with recall around **89%**.
+
+| Distance Function | Train Size | Test Size | Avg Query Time (ms) | Recall@100 |
+|:------------------|:-----------|:----------|:--------------------|:-----------|
+| Squared Euclidean | 36,712     | 4,080     | 1.37                | 89.30%     |
+| Cosine            | 36,712     | 4,080     | 1.19                | 89.54%     |
+| Dot Product       | 36,712     | 4,080     | 1.17                | 89.19%     |
+
+You can reproduce these results by running:
+
+```bash
+make bench-run BENCHMARK_DATASET=se_cs_768 ARGS="--ef-search=100"
+```
 
 ---
 

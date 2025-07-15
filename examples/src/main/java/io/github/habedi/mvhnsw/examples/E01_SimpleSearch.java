@@ -5,6 +5,7 @@ import io.github.habedi.mvhnsw.distance.Cosine;
 import io.github.habedi.mvhnsw.index.Index;
 import io.github.habedi.mvhnsw.index.MultiVectorHNSW;
 import io.github.habedi.mvhnsw.index.SearchResult;
+
 import java.util.List;
 
 /**
@@ -17,13 +18,13 @@ public class E01_SimpleSearch {
   public static void main(String[] args) {
     // 1. Configure the index
     Index index =
-        MultiVectorHNSW.builder()
-            .withM(16)
-            .withEfConstruction(200)
-            .withWeightedAverageDistance()
-            .addDistance(new Cosine(), 1.0f) // Using a single distance with a weight of 1.0
-            .and()
-            .build();
+      MultiVectorHNSW.builder()
+        .withM(16)
+        .withEfConstruction(200)
+        .withWeightedAverageDistance()
+        .addDistance(new Cosine(), 1.0f) // Using a single distance with a weight of 1.0
+        .and()
+        .build();
 
     // 2. Add items to the index
     System.out.println("Adding items representing simple 2D points...");
@@ -34,7 +35,8 @@ public class E01_SimpleSearch {
     // 3. Create a query and search for the top 2 nearest neighbors
     System.out.println("\nSearching for the 2 nearest neighbors to (0.1, 0.8)...");
     List<FloatVector> query = List.of(FloatVector.of(0.1f, 0.8f));
-    List<SearchResult> results = index.search(query, 2);
+    // The last parameter, `efSearch`, controls the accuracy/speed trade-off at query time.
+    List<SearchResult> results = index.search(query, 2, 10);
 
     // 4. Print the results
     System.out.println("Search results (SearchResult[id, score]):");

@@ -7,16 +7,13 @@ digraph DistanceAggregation {
 
     node [
     fontname = "Helvetica,Arial,sans-serif",
-    fontsize = 10,
     shape = box,
-    style = "filled",
-    color = "black",
-    penwidth = 1.6,
+    style = "filled,rounded",
+    color = "lightblue",
     fillcolor = "white",
-    margin = "0.06,0.04",
-    width = 1.2,
-    height = 0.35,
-    fixedsize = false
+    penwidth = 2,
+    fontsize = 10,
+    margin = "0.06,0.04"
     ]
 
     edge [
@@ -26,18 +23,32 @@ digraph DistanceAggregation {
     arrowsize = 0.8
     ]
 
-    // Input nodes
-    listU [label = "Item A:\n[u₁, u₂, ..., uₙ]", fillcolor = "#D6EAF8"]
-    listV [label = "Item B:\n[v₁, v₂, ..., vₙ]", fillcolor = "#D6EAF8"]
-    distanceFn [label = "Base Distance Function(s):\nCosine, Euclidean, etc.", fillcolor = "#FADBD8"]
+    subgraph cluster_input {
+    label = "Inputs"
+    style = "dashed"
+    color = "lightgrey"
 
-    // Aggregation node
-    aggregator [label = "Distance Aggregation\nFunction", fillcolor = "#FCF3CF", style = "filled,bold"]
+    listU [label = "Item A:\n[u₁, u₂, ..., uₙ]", fillcolor = "lightyellow"]
+    listV [label = "Item B:\n[v₁, v₂, ..., vₙ]", fillcolor = "lightyellow"]
+    distanceFn [label = "Base Distance Function(s):\nCosine, Euclidean, etc.", fillcolor = "lightpink"]
+    }
 
-    // Output node
-    result [label = "Aggregated Distance:\nScalar Value", fillcolor = "#ABEBC6", style = "filled,bold"]
+    subgraph cluster_process {
+    label = "Aggregation"
+    style = "dashed"
+    color = "lightgrey"
 
-    // Edges
+    aggregator [label = "Distance Aggregation\nFunction", fillcolor = "lightgrey"]
+    }
+
+    subgraph cluster_output {
+    label = "Output"
+    style = "dashed"
+    color = "lightgrey"
+
+    result [label = "Aggregated Distance:\nScalar Value", fillcolor = "lightgreen"]
+    }
+
     listU -> aggregator
     listV -> aggregator
     distanceFn -> aggregator

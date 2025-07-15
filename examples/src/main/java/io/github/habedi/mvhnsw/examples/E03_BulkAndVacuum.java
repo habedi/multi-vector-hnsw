@@ -5,6 +5,7 @@ import io.github.habedi.mvhnsw.distance.Cosine;
 import io.github.habedi.mvhnsw.index.Index;
 import io.github.habedi.mvhnsw.index.MultiVectorHNSW;
 import io.github.habedi.mvhnsw.index.SearchResult;
+
 import java.util.List;
 import java.util.Map;
 
@@ -17,22 +18,22 @@ import java.util.Map;
 public class E03_BulkAndVacuum {
   public static void main(String[] args) {
     Index index =
-        MultiVectorHNSW.builder()
-            .withM(16)
-            .withEfConstruction(200)
-            .withWeightedAverageDistance()
-            .addDistance(new Cosine(), 1.0f)
-            .and()
-            .build();
+      MultiVectorHNSW.builder()
+        .withM(16)
+        .withEfConstruction(200)
+        .withWeightedAverageDistance()
+        .addDistance(new Cosine(), 1.0f)
+        .and()
+        .build();
 
     // 1. Add items in bulk
     System.out.println("Adding items in bulk...");
     Map<Long, List<FloatVector>> items =
-        Map.of(
-            1L, List.of(FloatVector.of(0.1f, 0.9f)),
-            2L, List.of(FloatVector.of(0.8f, 0.2f)),
-            3L, List.of(FloatVector.of(0.2f, 0.7f)),
-            4L, List.of(FloatVector.of(0.9f, 0.1f)));
+      Map.of(
+        1L, List.of(FloatVector.of(0.1f, 0.9f)),
+        2L, List.of(FloatVector.of(0.8f, 0.2f)),
+        3L, List.of(FloatVector.of(0.2f, 0.7f)),
+        4L, List.of(FloatVector.of(0.9f, 0.1f)));
     index.addAll(items);
     System.out.println("Index size after bulk add: " + index.size());
 
@@ -43,7 +44,7 @@ public class E03_BulkAndVacuum {
     System.out.println("Index size after soft deletes: " + index.size());
 
     // 3. Verify search results (deleted items are ignored)
-    List<SearchResult> results = index.search(List.of(FloatVector.of(0.8f, 0.2f)), 1);
+    List<SearchResult> results = index.search(List.of(FloatVector.of(0.8f, 0.2f)), 1, 10);
     System.out.println("Closest item to deleted item 2 is now: " + results.get(0));
 
     // 4. Vacuum the index

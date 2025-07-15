@@ -1,0 +1,55 @@
+digraph MultiPartEmbedding {
+    fontname = "Helvetica,Arial,sans-serif"
+    layout = dot
+    rankdir = LR
+    ranksep = 1.0
+    nodesep = 0.8
+
+    node [
+    fontname = "Helvetica,Arial,sans-serif",
+    shape = box,
+    style = "filled,rounded",
+    color = "lightblue",
+    fillcolor = "white",
+    penwidth = 2,
+    fontsize = 10,
+    margin = "0.08,0.05"
+    ]
+
+    edge [
+    fontname = "Helvetica,Arial,sans-serif",
+    fontsize = 10,
+    color = "black",
+    arrowsize = 0.9
+    ]
+
+    subgraph cluster_input {
+    label = "Document Parts"
+    style = "dashed"
+    color = "lightgrey"
+
+    title [label = "Title", fillcolor = "lightyellow"]
+    body [label = "Body", fillcolor = "lightyellow"]
+    metadata [label = "Metadata", fillcolor = "lightyellow"]
+    }
+
+    subgraph cluster_output {
+    label = "Embeddings"
+    style = "dashed"
+    color = "lightgrey"
+
+    titleVec [label = "Title Vector", fillcolor = "lightgreen"]
+    bodyVec [label = "Body Vector", fillcolor = "lightgreen"]
+    metadataVec [label = "Metadata Vector", fillcolor = "lightgreen"]
+    }
+
+    encoder [label = "Embedding Model", fillcolor = "lightpink"]
+
+    title -> encoder
+    body -> encoder
+    metadata -> encoder
+
+    encoder -> titleVec
+    encoder -> bodyVec
+    encoder -> metadataVec
+}

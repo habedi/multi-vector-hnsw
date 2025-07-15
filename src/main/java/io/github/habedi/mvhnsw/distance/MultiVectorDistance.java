@@ -17,7 +17,7 @@ public interface MultiVectorDistance {
    *
    * @param vectors1 The list of vectors representing the first item.
    * @param vectors2 The list of vectors representing the second item.
-   * @return A single, non-negative value representing the aggregated distance.
+   * @return A single value representing the aggregated distance.
    * @throws IllegalArgumentException if the lists are not of equal size or do not meet other
    *     specific requirements of the implementation.
    */
