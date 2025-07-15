@@ -7,6 +7,14 @@ Given that each item can have multiple vectors, the main idea is to define a way
 vectors.
 This is done using a custom distance function that aggregates the distances between corresponding vectors of a pair of items.
 
+Figure below shows an example of how a complex object like a document can be represented by multiple vectors:
+
+<div align="center">
+<picture>
+<img src="assets/images/multi_vector_embedding.svg" alt="Multi-Vector Embedding" width="60%" height="60%" align="center">
+</picture>
+</div>
+
 The HNSW algorithm is relatively flexible when it comes to distance functions.
 The main requirement is that the function produces scalar values that are consistent with the similarity ordering of items.
 That means, if item A is more similar to a query (item) than item B, then the computed distance from A to the query should be lower than the
@@ -19,7 +27,7 @@ The figure below shows a high-level overview of how the distance aggregation fun
 
 <div align="center">
 <picture>
-<img src="assets/images/distance_aggregation.svg" alt="Distance Aggregation Function" width="auto" height="auto" align="center">
+<img src="assets/images/distance_aggregation.svg" alt="Distance Aggregation Function" width="60%" height="60%" align="center">
 </picture>
 </div>
 

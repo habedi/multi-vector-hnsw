@@ -35,6 +35,8 @@ Multi-Vector HNSW solves this by letting each object be indexed with multiple ve
 It also lets you choose how to define the distances between objects using a custom aggregated distance function.
 This can allow for more realistic and flexible searches when dealing with complex objects.
 
+
+
 ### Features
 
 * Simple and extendable API for multi-vector indexing and search
