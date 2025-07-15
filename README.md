@@ -35,8 +35,6 @@ Multi-Vector HNSW solves this by letting each object be indexed with multiple ve
 It also lets you choose how to define the distances between objects using a custom aggregated distance function.
 This can allow for more realistic and flexible searches when dealing with complex objects.
 
-
-
 ### Features
 
 * Simple and extendable API for multi-vector indexing and search
@@ -58,7 +56,7 @@ If you are using Maven, add this dependency to your `pom.xml`:
 <dependency>
     <groupId>io.github.habedi</groupId>
     <artifactId>multi-vector-hnsw</artifactId>
-    <version>0.2.0</version>
+    <version>0.1.5-beta</version>
 </dependency>
 ```
 
@@ -66,7 +64,7 @@ If you are using Gradle, add this dependency to your `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.github.habedi:multi-vector-hnsw:0.2.0'
+    implementation 'io.github.habedi:multi-vector-hnsw:0.1.5-beta'
 }
 ```
 

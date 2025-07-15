@@ -7,11 +7,11 @@ Given that each item can have multiple vectors, the main idea is to define a way
 vectors.
 This is done using a custom distance function that aggregates the distances between corresponding vectors of a pair of items.
 
-Figure below shows an example of how a complex object like a document can be represented by multiple vectors:
+The figure below shows an example of how a complex object like a document can be represented by multiple vectors:
 
 <div align="center">
 <picture>
-<img src="assets/images/multi_vector_embedding.svg" alt="Multi-Vector Embedding" width="60%" height="60%" align="center">
+<img src="assets/images/multi_vector_embedding.svg" alt="Multi-Vector Embedding" width="55%" height="55%" align="center">
 </picture>
 </div>
 
