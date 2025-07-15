@@ -43,7 +43,7 @@ This can allow for more realistic and flexible searches when dealing with comple
 * Bulk inserts and soft delete support
 * Save and load support for persisting indexes to disk
 * Fast distance calculations using SIMD instructions via Java Vector API
-* Compatible with Java 17 and later
+* Pure Java 17 implementation with no native dependencies
 
 ---
 
@@ -134,30 +134,11 @@ Project documentation is available at the [docs](docs) directory.
 
 ### Examples
 
-Check out the [examples](examples/src/main/java/io/github/habedi/mvhnsw/examples) directory for various use cases of the library.
-
-| # | File                                                                                                         | Description                                                                                        |
-|---|--------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| 1 | [`E01_SimpleSearch.java`](examples/src/main/java/io/github/habedi/mvhnsw/examples/E01_SimpleSearch.java)     | A very simple example                                                                              |
-| 2 | [`E02_SaveAndLoad.java`](examples/src/main/java/io/github/habedi/mvhnsw/examples/E02_SaveAndLoad.java)       | Demonstrates how to save and load an index                                                         |
-| 3 | [`E03_BulkAndVacuum.java`](examples/src/main/java/io/github/habedi/mvhnsw/examples/E03_BulkAndVacuum.java)   | Shows how to use bulk insert and delete APIs                                                       |
-| 4 | [`E04_CustomDistance.java`](examples/src/main/java/io/github/habedi/mvhnsw/examples/E04_CustomDistance.java) | Demonstrates how to define and use a custom distance function                                      |
-| 5 | [`E05_HybridSearch.java`](examples/src/main/java/io/github/habedi/mvhnsw/examples/E05_HybridSearch.java)     | Performs hybrid search using dense and sparse vectors with different weights                       |
-| 6 | [`E06_DocumentSearch.java`](examples/src/main/java/io/github/habedi/mvhnsw/examples/E06_DocumentSearch.java) | Indexes documents using separate embeddings for titles and bodies, with different weights for each |
+Check out the [examples](examples) directory for more usage examples.
 
 ### Benchmarks
 
-To run benchmarks for Multi-Vector HNSW, you can use the provided [Makefile](Makefile).
-
-Execute `BENCHMARK_DATASET=<dataset_name> make bench-run` to start the benchmarks for a specified dataset.
-At the moment, `<dataset_name>` can be one of `se_cs_768`, `se_ds_768`, or `se_pc_768`.
-
-Check out the [benches](benches) directory for more details.
-
-> [!NOTE]
-> You can use `make bench-data` to download the benchmark datasets automatically.
-> However, you need to have [huggingface-cli](https://huggingface.co/docs/huggingface_hub/en/guides/cli) installed.
-> You can set up a Python environment with `huggingface-cli` using the provided [pyproject.toml](pyproject.toml) file.
+See the [benches](benches) directory for information on how to run project benchmarks.
 
 ---
 
