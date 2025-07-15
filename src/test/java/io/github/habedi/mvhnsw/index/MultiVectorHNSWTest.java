@@ -10,6 +10,10 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -82,14 +86,20 @@ class MultiVectorHNSWTest {
   void testSearchFunctionality() {
     index.add(1L, vectors1);
     index.add(2L, vectors2);
-    List<SearchResult> results = index.search(vectors1, 1);
+    List<SearchResult> results = index.search(vectors1, 1, 10);
     assertEquals(1, results.size());
     assertEquals(1L, results.get(0).id());
   }
 
   @Test
+  void testSearchThrowsIfEfSearchIsLessThanK() {
+    index.add(1L, vectors1);
+    assertThrows(IllegalArgumentException.class, () -> index.search(vectors1, 5, 4));
+  }
+
+  @Test
   void testSearchEmptyIndex() {
-    assertTrue(index.search(vectors1, 5).isEmpty());
+    assertTrue(index.search(vectors1, 5, 10).isEmpty());
   }
 
   @Test
@@ -98,7 +108,7 @@ class MultiVectorHNSWTest {
     index.add(2L, vectors2);
     index.remove(1L); // Assume 1L was the entry point
 
-    List<SearchResult> results = index.search(vectors2, 1);
+    List<SearchResult> results = index.search(vectors2, 1, 10);
     assertEquals(1, results.size());
     assertEquals(2L, results.get(0).id());
   }
@@ -109,7 +119,7 @@ class MultiVectorHNSWTest {
     index.add(2L, vectors2);
     index.remove(2L); // Delete the item we'd normally find
 
-    List<SearchResult> results = index.search(vectors2, 2);
+    List<SearchResult> results = index.search(vectors2, 2, 10);
     assertEquals(1, results.size());
     assertEquals(1L, results.get(0).id()); // Should find the other item
   }
@@ -158,5 +168,62 @@ class MultiVectorHNSWTest {
     assertThrows(
         IllegalArgumentException.class, () -> MultiVectorHNSW.builder().withEfConstruction(0));
     assertThrows(NullPointerException.class, () -> MultiVectorHNSW.builder().build());
+  }
+
+  @Test
+  void testConcurrentReadWrites() throws InterruptedException {
+    final int writerThreads = 2;
+    final int readerThreads = 4;
+    final int itemsPerWriter = 200;
+    final int totalItems = writerThreads * itemsPerWriter;
+    final var executor = Executors.newFixedThreadPool(writerThreads + readerThreads);
+    final var latch = new CountDownLatch(writerThreads + readerThreads);
+    final AtomicInteger writeCounter = new AtomicInteger();
+
+    assertDoesNotThrow(
+        () -> {
+          // Writer tasks
+          for (int i = 0; i < writerThreads; i++) {
+            executor.submit(
+                () -> {
+                  latch.countDown();
+                  try {
+                    latch.await();
+                    for (int j = 0; j < itemsPerWriter; j++) {
+                      int id = writeCounter.incrementAndGet();
+                      index.add((long) id, List.of(FloatVector.of(id, id)));
+                    }
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                  }
+                });
+          }
+
+          // Reader tasks
+          for (int i = 0; i < readerThreads; i++) {
+            executor.submit(
+                () -> {
+                  latch.countDown();
+                  try {
+                    latch.await();
+                    for (int j = 0; j < 500; j++) {
+                      // Search for a random existing item
+                      int searchId = (j % writeCounter.get()) + 1;
+                      index.search(List.of(FloatVector.of(searchId, searchId)), 5, 10);
+                    }
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                  }
+                });
+          }
+
+          executor.shutdown();
+          assertTrue(
+              executor.awaitTermination(15, TimeUnit.SECONDS),
+              "Executor did not terminate in time");
+
+          assertEquals(totalItems, index.size());
+          assertTrue(index.get((long) totalItems).isPresent());
+        });
   }
 }

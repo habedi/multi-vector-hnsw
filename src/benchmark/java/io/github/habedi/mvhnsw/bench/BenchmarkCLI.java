@@ -48,10 +48,16 @@ public class BenchmarkCLI implements Callable<Integer> {
   private int m;
 
   @Option(
-    names = {"-ef", "--ef-construction"},
+    names = {"-efc", "--ef-construction"},
     description = "The efConstruction parameter for HNSW.",
     defaultValue = "200")
   private int efConstruction;
+
+  @Option(
+    names = {"-efs", "--ef-search"},
+    description = "The efSearch parameter for HNSW.",
+    defaultValue = "100")
+  private int efSearch;
 
   @Option(
     names = {"-p", "--profiler"},
@@ -66,10 +72,11 @@ public class BenchmarkCLI implements Callable<Integer> {
   @Override
   public Integer call() throws RunnerException, IOException {
     log.info(
-      "Starting benchmark with dataset={}, m={}, efConstruction={}",
+      "Starting benchmark with dataset={}, m={}, efConstruction={}, efSearch={}",
       datasetName,
       m,
-      efConstruction);
+      efConstruction,
+      efSearch);
 
     ChainedOptionsBuilder builder =
       new OptionsBuilder()
@@ -77,7 +84,8 @@ public class BenchmarkCLI implements Callable<Integer> {
         .param("datasetName", datasetName)
         .param("dataPath", dataPath)
         .param("m", String.valueOf(m))
-        .param("efConstruction", String.valueOf(efConstruction));
+        .param("efConstruction", String.valueOf(efConstruction))
+        .param("efSearch", String.valueOf(efSearch));
 
     if (profiler != null && !profiler.isBlank()) {
       log.info("Enabling JMH profiler: {}", profiler);
@@ -95,25 +103,24 @@ public class BenchmarkCLI implements Callable<Integer> {
     System.out.println("\n\n--- HNSW Benchmark Summary ---");
     String header =
       String.format(
-        "%-20s | %-8s | %-8s | %-8s | %-5s | %-8s | %-22s | %-12s",
+        "%-20s | %-8s | %-8s | %-8s | %-5s | %-8s | %-8s | %-18s | %-12s",
         "Distance",
         "Train",
         "Test",
         "Dims",
         "M",
         "efConst",
-        "Throughput (ops/ms)",
+        "efSearch",
+        "Avg Time (ms)",
         "Recall@" + K);
     System.out.println(header);
     System.out.println(new String(new char[header.length()]).replace("\0", "-"));
 
-    // Group search results by their distance metric for robust lookup
     Map<String, RunResult> searchResultsByMetric =
       results.stream()
         .filter(r -> r.getPrimaryResult().getLabel().equals("search"))
         .collect(Collectors.toMap(r -> r.getParams().getParam("distanceMetric"), r -> r));
 
-    // Iterate through the collected search results to gurantee a consistent order
     for (String metric : List.of("squared_euclidean", "cosine", "dot_product")) {
       RunResult r = searchResultsByMetric.get(metric);
       if (r == null) {
@@ -123,6 +130,7 @@ public class BenchmarkCLI implements Callable<Integer> {
       var params = r.getParams();
       int mParam = Integer.parseInt(params.getParam("m"));
       int efcParam = Integer.parseInt(params.getParam("efConstruction"));
+      int efsParam = Integer.parseInt(params.getParam("efSearch"));
       String dsName = params.getParam("datasetName");
       String dsPath = params.getParam("dataPath");
 
@@ -136,10 +144,12 @@ public class BenchmarkCLI implements Callable<Integer> {
       double totalQueries = (totalQueriesResult != null) ? totalQueriesResult.getScore() : 0.0;
       double recall = (totalQueries == 0) ? 0 : hits / totalQueries;
 
-      // This now correctly references the primary result of the "search" benchmark run
       double throughput = r.getPrimaryResult().getScore();
       double throughputError = r.getPrimaryResult().getScoreError();
-      String throughputStr = String.format("%.4f ± %.4f", throughput, throughputError);
+
+      double avgTime = 1.0 / throughput;
+      double avgTimeError = throughputError / (throughput * throughput);
+      String avgTimeStr = String.format("%.4f ± %.4f", avgTime, avgTimeError);
 
       String dims =
         String.format(
@@ -148,14 +158,15 @@ public class BenchmarkCLI implements Callable<Integer> {
           data.trainingData().get(0).toFloatVectors().get(0).length());
 
       System.out.printf(
-        "%-20s | %-8d | %-8d | %-8s | %-5d | %-8d | %-22s | %.4f\n",
+        "%-20s | %-8d | %-8d | %-8s | %-5d | %-8d | %-8d | %-18s | %.4f\n",
         metric,
         data.trainingData().size(),
         data.testData().size(),
         dims,
         mParam,
         efcParam,
-        throughputStr,
+        efsParam,
+        avgTimeStr,
         recall);
     }
     System.out.println();

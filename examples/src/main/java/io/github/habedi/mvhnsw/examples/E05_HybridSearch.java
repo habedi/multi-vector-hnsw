@@ -62,7 +62,7 @@ public class E05_HybridSearch {
         FloatVector.of(0.95f, 0.05f), // Dense: "canine"
         FloatVector.of(1.0f, 0.0f, 0.0f) // Sparse: "animal"
       );
-    List<SearchResult> results = index.search(query, 3);
+    List<SearchResult> results = index.search(query, 3, 10);
 
     System.out.println("Hybrid Search Results:");
     results.forEach(System.out::println);

@@ -55,6 +55,9 @@ public class IndexBenchmark {
   @Param({"200"})
   public int efConstruction;
 
+  @Param({"100"})
+  public int efSearch;
+
   private BenchmarkData loadedData;
   private Index index;
   private Map<Long, List<FloatVector>> preConvertedTestData;
@@ -63,6 +66,10 @@ public class IndexBenchmark {
 
   @Setup(Level.Trial)
   public void setupTrial() throws IOException {
+    if (efSearch < K) {
+      throw new IllegalArgumentException("efSearch must be >= K for benchmark to be valid.");
+    }
+
     loadedData = BenchmarkData.load(dataPath, datasetName, distanceMetric, K);
 
     if (!loadedData.trainingData().isEmpty()) {
@@ -88,7 +95,7 @@ public class IndexBenchmark {
   @Benchmark
   public void search(Blackhole bh, RecallCounters counters) {
     for (Map.Entry<Long, List<FloatVector>> entry : preConvertedTestData.entrySet()) {
-      List<SearchResult> results = index.search(entry.getValue(), K);
+      List<SearchResult> results = index.search(entry.getValue(), K, efSearch);
       updateRecall(entry.getKey(), results, loadedData.groundTruth(), counters);
       bh.consume(results);
     }

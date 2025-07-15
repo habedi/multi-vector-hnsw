@@ -35,7 +35,8 @@ public class E01_SimpleSearch {
     // 3. Create a query and search for the top 2 nearest neighbors
     System.out.println("\nSearching for the 2 nearest neighbors to (0.1, 0.8)...");
     List<FloatVector> query = List.of(FloatVector.of(0.1f, 0.8f));
-    List<SearchResult> results = index.search(query, 2);
+    // The last parameter, `efSearch`, controls the accuracy/speed trade-off at query time.
+    List<SearchResult> results = index.search(query, 2, 10);
 
     // 4. Print the results
     System.out.println("Search results (SearchResult[id, score]):");

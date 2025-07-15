@@ -9,7 +9,7 @@ import io.github.habedi.mvhnsw.index.SearchResult;
 import java.util.List;
 
 /**
- * Example 6: Simulates a document search use case scenario.
+ * Example 6: Simulates a document search scenario.
  *
  * <p>Documents are indexed with two vectors: one for the title and one for the body. We can weight
  * the title match higher than the body match to improve search relevance.
@@ -57,7 +57,7 @@ public class E06_DocumentSearch {
     System.out.println("\nUser is searching for 'java threading'...");
     List<FloatVector> queryVectors =
       List.of(titleEmbedding("java threading"), bodyEmbedding("java threading"));
-    List<SearchResult> results = index.search(queryVectors, 3);
+    List<SearchResult> results = index.search(queryVectors, 3, 20);
 
     System.out.println("Search Results:");
     results.forEach(

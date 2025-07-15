@@ -4,7 +4,7 @@ The code for the benchmarks is in [src/benchmark](../src/benchmark/java/io/githu
 The benchmarks primarily measure average build time and search time (in milliseconds) as well as recall@k (with k=100) for a given dataset.
 
 Execute `make bench-run BENCHMARK_DATASET=<dataset_name>` to start the benchmarks for a specified dataset.
-At the moment, `<dataset_name>` can be one of `se_cs_768`, `se_ds_768`, or `se_pc_768`.
+At the moment, `<dataset_name>` can be one of `se_cs_768`, `se_ds_768`, or `se_p_768`.
 
 The commands below will run the benchmarks for all three datasets.
 (They must be run inside the root directory of the project.)

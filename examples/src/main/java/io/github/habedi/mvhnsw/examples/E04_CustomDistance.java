@@ -38,7 +38,7 @@ public class E04_CustomDistance {
     index.add(2L, List.of(FloatVector.of(0.1f, 0.9f), FloatVector.of(0.8f, 0.2f)));
 
     List<FloatVector> query = List.of(FloatVector.of(1.0f, 0.0f), FloatVector.of(0.0f, 1.0f));
-    List<SearchResult> results = index.search(query, 1);
+    List<SearchResult> results = index.search(query, 1, 10);
 
     // Distance for item 1 is max(-0.9, -0.8) = -0.8
     // Distance for item 2 is max(-0.1, -0.2) = -0.1

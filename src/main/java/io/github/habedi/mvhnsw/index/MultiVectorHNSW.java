@@ -211,7 +211,11 @@ public final class MultiVectorHNSW implements Index, Serializable {
   }
 
   @Override
-  public List<SearchResult> search(List<FloatVector> queryVectors, int k) {
+  public List<SearchResult> search(List<FloatVector> queryVectors, int k, int efSearch) {
+    if (efSearch < k) {
+      throw new IllegalArgumentException("efSearch must be greater than or equal to k");
+    }
+
     lock.readLock().lock();
     try {
       Node currentEntryPoint = entryPoint;
@@ -243,8 +247,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
         }
       }
 
-      PriorityQueue<Neighbor> results =
-          searchLayer(nearestNode, queryVectors, Math.max(k, efConstruction), 0);
+      PriorityQueue<Neighbor> results = searchLayer(nearestNode, queryVectors, efSearch, 0);
 
       return results.stream()
           .sorted()

@@ -47,7 +47,7 @@ public class E02_SaveAndLoad {
     // --- 4. Verify the Loaded Index Works ---
     System.out.println("\nSearching in the loaded index to verify it's functional...");
     List<FloatVector> query = List.of(FloatVector.of(1.1f, 2.1f));
-    List<SearchResult> results = loadedIndex.search(query, 1);
+    List<SearchResult> results = loadedIndex.search(query, 1, 10);
 
     System.out.println("Search results:");
     results.forEach(System.out::println);

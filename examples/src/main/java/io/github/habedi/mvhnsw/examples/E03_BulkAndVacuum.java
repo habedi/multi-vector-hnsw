@@ -44,7 +44,7 @@ public class E03_BulkAndVacuum {
     System.out.println("Index size after soft deletes: " + index.size());
 
     // 3. Verify search results (deleted items are ignored)
-    List<SearchResult> results = index.search(List.of(FloatVector.of(0.8f, 0.2f)), 1);
+    List<SearchResult> results = index.search(List.of(FloatVector.of(0.8f, 0.2f)), 1, 10);
     System.out.println("Closest item to deleted item 2 is now: " + results.get(0));
 
     // 4. Vacuum the index

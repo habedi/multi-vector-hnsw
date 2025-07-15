@@ -12,7 +12,8 @@ public interface Distance<T> {
    *
    * @param a The first item.
    * @param b The second item.
-   * @return A non-negative value representing the distance.
+   * @return A value representing the distance. Lower values typically indicate closer items. This
+   *     value is not required to be non-negative.
    */
   double compute(T a, T b);
 
@@ -21,7 +22,7 @@ public interface Distance<T> {
    *
    * <p>This default implementation returns the square of the value from {@link #compute(Object,
    * Object)}. For distance metrics where the squared value can be calculated more efficiently
-   * (e.g., Euclidean distance, avoiding a square root), this method should be overridden.
+   * (e.g., Euclidean distance), this method should be overridden.
    *
    * @param a The first item.
    * @param b The second item.
