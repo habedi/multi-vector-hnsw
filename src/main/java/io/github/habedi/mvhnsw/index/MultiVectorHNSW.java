@@ -7,7 +7,6 @@ import io.github.habedi.mvhnsw.distance.WeightedAverageDistance;
 import java.io.*;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -24,7 +23,7 @@ import org.apache.logging.log4j.Logger;
  */
 public final class MultiVectorHNSW implements Index, Serializable {
 
-  @Serial private static final long serialVersionUID = 2L;
+  @Serial private static final long serialVersionUID = 3L;
   private static final Logger log = LogManager.getLogger(MultiVectorHNSW.class);
 
   private final MultiVectorDistance multiVectorDistance;
@@ -52,8 +51,8 @@ public final class MultiVectorHNSW implements Index, Serializable {
     this.m = builder.m;
     this.efConstruction = builder.efConstruction;
     this.levelLambda = 1 / Math.log(m);
-    this.vectorMap = new ConcurrentHashMap<>();
-    this.nodes = new ConcurrentHashMap<>();
+    this.vectorMap = new HashMap<>();
+    this.nodes = new HashMap<>();
     this.lock = new ReentrantReadWriteLock();
     this.entryPoint = null;
     log.info(
@@ -132,12 +131,12 @@ public final class MultiVectorHNSW implements Index, Serializable {
         }
 
         List<Neighbor> neighbors = selectNeighborsHeuristic(candidates, m);
-        newNode.setConnections(l, neighbors.stream().map(n -> n.id).collect(Collectors.toList()));
+        newNode.setConnections(l, neighbors);
 
         for (Neighbor neighbor : neighbors) {
           Node neighborNode = nodes.get(neighbor.id);
           if (neighborNode != null) {
-            addConnection(neighborNode, id, neighbor.distance, l);
+            addConnection(neighborNode, new Neighbor(id, neighbor.distance), l);
           }
         }
         assert candidates.peek() != null;
@@ -155,31 +154,24 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
   /**
    * Adds a connection to a target node, ensuring the number of connections does not exceed M. If
-   * the connections are full, it may replace the furthest neighbor.
+   * the connections are full, it may replace the furthest neighbor. This implementation is
+   * optimized to avoid recalculating distances.
    */
-  private void addConnection(
-      Node targetNode, long newConnectionId, double newConnectionDistance, int level) {
-    List<Long> connections = targetNode.getConnections(level);
+  private void addConnection(Node targetNode, Neighbor newConnection, int level) {
+    List<Neighbor> connections = targetNode.getConnections(level);
 
     if (connections.size() < m) {
-      connections.add(newConnectionId);
+      connections.add(newConnection);
+      connections.sort(Comparator.naturalOrder());
       return;
     }
 
-    long furthestNodeId = -1;
-    double maxDist = -1.0;
-
-    for (long currentConnectionId : connections) {
-      double dist = distance(targetNode.id, currentConnectionId);
-      if (dist > maxDist) {
-        maxDist = dist;
-        furthestNodeId = currentConnectionId;
-      }
-    }
-
-    if (newConnectionDistance < maxDist) {
-      connections.remove(furthestNodeId);
-      connections.add(newConnectionId);
+    // The list is sorted, so the last element is the furthest
+    Neighbor furthestNeighbor = connections.get(connections.size() - 1);
+    if (newConnection.distance < furthestNeighbor.distance) {
+      // Replace the furthest neighbor and re-sort
+      connections.set(connections.size() - 1, newConnection);
+      connections.sort(Comparator.naturalOrder());
     }
   }
 
@@ -381,7 +373,8 @@ public final class MultiVectorHNSW implements Index, Serializable {
         continue;
       }
 
-      for (long neighborId : node.getConnections(level)) {
+      for (Neighbor neighbor : node.getConnections(level)) {
+        long neighborId = neighbor.id;
         if (visited.add(neighborId)) {
           Node neighborNode = nodes.get(neighborId);
           if (neighborNode != null && !neighborNode.deleted) {
@@ -417,16 +410,6 @@ public final class MultiVectorHNSW implements Index, Serializable {
     return multiVectorDistance.compute(vectors, vectors2);
   }
 
-  /** Calculates the distance between two stored nodes. */
-  private double distance(long nodeId1, long nodeId2) {
-    List<FloatVector> vectors1 = vectorMap.get(nodeId1);
-    List<FloatVector> vectors2 = vectorMap.get(nodeId2);
-    if (vectors1 == null || vectors2 == null) {
-      return Double.MAX_VALUE;
-    }
-    return multiVectorDistance.compute(vectors1, vectors2);
-  }
-
   /** Custom deserialization method to re-initialize the transient lock. */
   @Serial
   private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
@@ -434,8 +417,9 @@ public final class MultiVectorHNSW implements Index, Serializable {
     this.lock = new ReentrantReadWriteLock();
   }
 
-  /** A private record to represent a neighbor in the graph during a search. */
-  private record Neighbor(long id, double distance) implements Comparable<Neighbor> {
+  /** A private record to represent a neighbor in the graph during a search or construction. */
+  private record Neighbor(long id, double distance)
+      implements Comparable<Neighbor>, Serializable { // FIX: Added Serializable
     @Override
     public int compareTo(Neighbor other) {
       return Double.compare(this.distance, other.distance);
@@ -444,27 +428,27 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
   /** A private class representing a node in the HNSW graph. */
   private static class Node implements Serializable {
-    @Serial private static final long serialVersionUID = 2L;
+    @Serial private static final long serialVersionUID = 3L;
     private final long id;
     private final int level;
-    private final List<Long>[] connections;
+    private final List<Neighbor>[] connections;
     private volatile boolean deleted = false;
 
     @SuppressWarnings("unchecked")
     Node(long id, int level, int m) {
       this.id = id;
       this.level = level;
-      this.connections = (List<Long>[]) new ArrayList[level + 1];
+      this.connections = (List<Neighbor>[]) new ArrayList[level + 1];
       for (int i = 0; i <= level; i++) {
         connections[i] = new ArrayList<>(m);
       }
     }
 
-    List<Long> getConnections(int level) {
+    List<Neighbor> getConnections(int level) {
       return connections[level];
     }
 
-    void setConnections(int level, List<Long> newConnections) {
+    void setConnections(int level, List<Neighbor> newConnections) {
       connections[level].clear();
       connections[level].addAll(newConnections);
     }

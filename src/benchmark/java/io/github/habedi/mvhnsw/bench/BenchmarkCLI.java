@@ -103,7 +103,7 @@ public class BenchmarkCLI implements Callable<Integer> {
     System.out.println("\n\n--- HNSW Benchmark Summary ---");
     String header =
       String.format(
-        "%-20s | %-8s | %-8s | %-8s | %-5s | %-8s | %-8s | %-18s | %-12s",
+        "%-20s | %-8s | %-8s | %-8s | %-5s | %-8s | %-8s | %-20s | %-12s",
         "Distance",
         "Train",
         "Test",
@@ -111,7 +111,7 @@ public class BenchmarkCLI implements Callable<Integer> {
         "M",
         "efConst",
         "efSearch",
-        "Avg Time (ms)",
+        "Avg Time/Query (ms)",
         "Recall@" + K);
     System.out.println(header);
     System.out.println(new String(new char[header.length()]).replace("\0", "-"));
@@ -140,16 +140,24 @@ public class BenchmarkCLI implements Callable<Integer> {
       Result hitsResult = secondaryResults.get("hits");
       Result totalQueriesResult = secondaryResults.get("totalQueries");
 
-      double hits = (hitsResult != null) ? hitsResult.getScore() : 0.0;
+      double totalHits = (hitsResult != null) ? hitsResult.getScore() : 0.0;
       double totalQueries = (totalQueriesResult != null) ? totalQueriesResult.getScore() : 0.0;
-      double recall = (totalQueries == 0) ? 0 : hits / totalQueries;
+      double recall = (totalQueries == 0) ? 0 : totalHits / (totalQueries * K);
 
-      double throughput = r.getPrimaryResult().getScore();
+      // JMH score for throughput is in (ops/ms). An "op" is one full run of the benchmark method.
+      double throughputOpsPerMs = r.getPrimaryResult().getScore();
       double throughputError = r.getPrimaryResult().getScoreError();
 
-      double avgTime = 1.0 / throughput;
-      double avgTimeError = throughputError / (throughput * throughput);
-      String avgTimeStr = String.format("%.4f ± %.4f", avgTime, avgTimeError);
+      // Our benchmark "op" runs searches for the entire test dataset.
+      double queriesPerOp = data.testData().size();
+
+      // Calculate the average time for a single query.
+      double avgTimePerQuery = 1.0 / (throughputOpsPerMs * queriesPerOp);
+
+      // Propagate the relative error: error_time/time = error_throughput/throughput
+      double relativeError = throughputError / throughputOpsPerMs;
+      double avgTimeError = avgTimePerQuery * relativeError;
+      String avgTimeStr = String.format("%.4f ± %.4f", avgTimePerQuery, avgTimeError);
 
       String dims =
         String.format(
@@ -158,7 +166,7 @@ public class BenchmarkCLI implements Callable<Integer> {
           data.trainingData().get(0).toFloatVectors().get(0).length());
 
       System.out.printf(
-        "%-20s | %-8d | %-8d | %-8s | %-5d | %-8d | %-8d | %-18s | %.4f\n",
+        "%-20s | %-8d | %-8d | %-8s | %-5d | %-8d | %-8d | %-20s | %.4f\n",
         metric,
         data.trainingData().size(),
         data.testData().size(),

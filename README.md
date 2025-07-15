@@ -52,7 +52,7 @@ If you are using Maven, add this dependency to your `pom.xml`:
 <dependency>
     <groupId>io.github.habedi</groupId>
     <artifactId>multi-vector-hnsw</artifactId>
-    <version>0.1.5-beta</version>
+    <version>0.2.0-beta</version>
 </dependency>
 ```
 
@@ -60,7 +60,7 @@ If you are using Gradle, add this dependency to your `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.github.habedi:multi-vector-hnsw:0.1.5-beta'
+    implementation 'io.github.habedi:multi-vector-hnsw:0.2.0-beta'
 }
 ```
 
@@ -85,7 +85,7 @@ public class SimpleExample {
     public static void main(String[] args) {
 
         // 1. Configure the index for items with two vectors.
-        // We'll weight the first vector (Euclidean distance) as 70% important
+        // We'll weight the first vector (squared Euclidean distance) as 70% important
         // and the second vector (Cosine distance) as 30% important.
         Index index = MultiVectorHNSW.builder()
             .withM(16)
@@ -103,7 +103,8 @@ public class SimpleExample {
 
         // 3. Create a query and search for the top 2 nearest neighbors
         List<FloatVector> query = List.of(FloatVector.of(1.4f, 2.6f), FloatVector.of(0.7f, 0.2f));
-        List<SearchResult> results = index.search(query, 2);
+        // The third parameter, `efSearch`, controls the accuracy/speed trade-off.
+        List<SearchResult> results = index.search(query, 2, 20);
 
         // 4. Print the results
         System.out.println("Search results:");
@@ -139,32 +140,31 @@ See the [benches](benches) directory for information on how to run project bench
 #### Sample Results
 
 The table below shows benchmark results for different distance functions using the
-[`se_ds_768`](https://huggingface.co/datasets/habedi/multi-vector-hnsw-datasets) dataset on a machine with 32GB RAM and an AMD Ryzen 5 7600X
-CPU.
+[`se_cs_768`](https://huggingface.co/datasets/habedi/multi-vector-hnsw-datasets)
+dataset on a machine with 32GB RAM and an AMD Ryzen 5 7600X CPU.
 
-Each item is represented by three 768-dimensional vectors.
-The index was built with `M=16` and `efConstruction=200`.
-Training data was used to build the index; test data was used for evaluation.
+Each item is represented by three 768-dimensional vectors. The index was built with `M=16` and `efConstruction=200`. Searches were performed
+with `efSearch=100` to find the top 100 nearest neighbors.
 
 For each distance function, we report:
 
-* Average query time (in milliseconds)
-* Recall@100 (how many of the top 100 true nearest neighbors were found)
+* **Average Query Time:** The average time in milliseconds to perform a single search.
+* **Recall@100:** How many of the top 100 true nearest neighbors were found, on average.
 
 Distances are aggregated using a uniformly-weighted average across the three vectors.
 
-In this setup, average query time is **\~5–10 ms**, with recall above **94%** for all distance functions.
+In this setup, the average query time is **\~1.2–1.4 ms**, with recall around **90%**.
 
-| Distance Function | Train Size | Test Size | Avg Query Time (ms) | Recall\@100 |
-|-------------------|------------|-----------|---------------------|-------------|
-| Squared Euclidean | 26,055     | 2,895     | 10.0 ± 0.0          | 94.28%      |
-| Cosine            | 26,055     | 2,895     | 5.0 ± 2.5           | 94.21%      |
-| Dot Product       | 26,055     | 2,895     | 5.0 ± 0.0           | 94.26%      |
+| Distance Function | Train Size | Test Size | Avg Query Time (ms) | Recall@100 |
+|:------------------|:-----------|:----------|:--------------------|:-----------|
+| Squared Euclidean | 36,712     | 4,080     | 1.42                | 89.74%     |
+| Cosine            | 36,712     | 4,080     | 1.18                | 89.37%     |
+| Dot Product       | 36,712     | 4,080     | 1.21                | 89.17%     |
 
 You can reproduce these results by running:
 
 ```bash
-make bench-run BENCHMARK_DATASET=se_ds_768
+make bench-run BENCHMARK_DATASET=se_cs_768
 ```
 
 ---

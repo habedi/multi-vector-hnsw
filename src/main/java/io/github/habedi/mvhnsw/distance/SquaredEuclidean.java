@@ -36,8 +36,8 @@ public class SquaredEuclidean implements Distance<FloatVector>, Serializable {
       throw new IllegalArgumentException("Vector lengths must be equal.");
     }
 
-    float[] v1 = a.getRawData();
-    float[] v2 = b.getRawData();
+    float[] v1 = a.getUnsafeRawData();
+    float[] v2 = b.getUnsafeRawData();
     double sumSq = 0.0;
     int bound = SPECIES.loopBound(v1.length);
     int i = 0;

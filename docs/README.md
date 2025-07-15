@@ -97,11 +97,11 @@ This is set during each search operation.
 
 At the moment, Multi-Vector HNSW supports the following distance functions out of the box:
 
-| \# | Distance Function                                                                            | Formula (for vectors A, B)        | Range   | Description                                 |
-|----|----------------------------------------------------------------------------------------------|-----------------------------------|---------|---------------------------------------------|
-| 1  | [Cosine](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java)                      | $1 - \frac{A \cdot B}{            | A       | \cdot                                       |B|}$ | [0, 2]  | One minus cosine similarity                 |
-| 2  | [Squared Euclidean](../src/main/java/io/github/habedi/mvhnsw/distance/SquaredEuclidean.java) | $\sum_i (A_i - B_i)^2$            | [0, ∞)  | The squared value of the Euclidean distance |
-| 3  | [Dot Product](../src/main/java/io/github/habedi/mvhnsw/distance/DotProduct.java)             | $- (A \cdot B) = -\sum_i A_i B_i$ | [-∞, ∞] | The negative of the dot product             |
+| \# | Distance Function                                                                            | Formula (for vectors A, B)                               | Range   | Description                                 |
+|----|----------------------------------------------------------------------------------------------|----------------------------------------------------------|---------|---------------------------------------------|
+| 1  | [Cosine](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java)                      | $1 - \frac{A \cdot B}{            \| A \| \cdot \|B \|}$ | [0, 2]  | One minus cosine similarity                 |
+| 2  | [Squared Euclidean](../src/main/java/io/github/habedi/mvhnsw/distance/SquaredEuclidean.java) | $\sum_i (A_i - B_i)^2$                                   | [0, ∞)  | The squared value of the Euclidean distance |
+| 3  | [Dot Product](../src/main/java/io/github/habedi/mvhnsw/distance/DotProduct.java)             | $- (A \cdot B) = -\sum_i A_i B_i$                        | [-∞, ∞] | The negative of the dot product             |
 
 > [\!NOTE]
 > Squared Euclidean distance gives the same ordering as standard Euclidean distance, but it's faster to compute.
@@ -114,12 +114,13 @@ It's very easy to extend the library's functionality with new distances. To do t
 1. [Distance<FloatVector>](../src/main/java/io/github/habedi/mvhnsw/distance/Distance.java): Represents a distance between a pair of
    vectors (see [Cosine.java](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java) for an example).
 2. [MultiVectorDistance](../src/main/java/io/github/habedi/mvhnsw/distance/MultiVectorDistance.java): Represents the aggregated distance
-   between two lists of vectors (
-   see [WeightedAverageDistance.java](../src/main/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistance.java) for an example
+   between two lists of vectors
+(see [WeightedAverageDistance.java](../src/main/java/io/github/habedi/mvhnsw/distance/WeightedAverageDistance.java) for an example
    implementation).
 
-To add new functionality, you just need to create new classes that implement these interfaces. The HNSW builder can accept any class that
-conforms to the [MultiVectorDistance](../src/main/java/io/github/habedi/mvhnsw/distance/MultiVectorDistance.java) interface.
+To add new functionality, you just need to create new classes that implement these interfaces.
+The HNSW builder can accept any class that conforms to
+the [MultiVectorDistance](../src/main/java/io/github/habedi/mvhnsw/distance/MultiVectorDistance.java) interface.
 
 #### Example: Adding Manhattan and Min-Distance
 

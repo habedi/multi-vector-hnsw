@@ -11,11 +11,14 @@ BENCHMARK_DATA_DIR ?= benches/multi-vector-hnsw-datasets
 # Default benchmark dataset
 BENCHMARK_DATASET ?= se_p_768
 
+# Extra arguments for benchmark runs
+ARGS ?=
+
 # Default target executed when 'make' is run without arguments
 .DEFAULT_GOAL := help
 
 # Phony targets don't represent files
-.PHONY: help build package publish test format format-check lint clean setup-hooks \
+.PHONY: help build package package-release publish test format format-check lint clean setup-hooks \
  test-hooks bench-data bench-jar bench-run
 
 help: ## Show this help message
@@ -81,8 +84,8 @@ bench-jar: ## Build the benchmark JAR file
 	@echo "Building benchmark JAR file..."
 	@$(MVN) package -Pbenchmark
 
-bench-run: bench-data bench-jar ## Run benchmarks (e.g., make bench-run LOG_LEVEL=debug)
+bench-run: bench-data bench-jar ## Run benchmarks (e.g., make bench-run BENCHMARK_DATASET=se_p_768)
 	@echo "Running benchmarks with log level $(LOG_LEVEL)..."
 	@java --add-modules jdk.incubator.vector -Dmv.hnsw.log.level=$(LOG_LEVEL) \
 	-jar target/benchmarks.jar --dataset $(BENCHMARK_DATASET) --data-path $(BENCHMARK_DATA_DIR) \
-	--profiler "stack"
+	--profiler "stack" $(ARGS)
