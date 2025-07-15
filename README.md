@@ -117,8 +117,8 @@ Output:
 
 ```shell
 Search results:
-SearchResult[id=3, score=0.06800000000000003] # Smaller score means closer match
-SearchResult[id=1, score=0.08800000000000002]
+SearchResult[id=1, score=0.01811674313280146] # Smaller score means closer match
+SearchResult[id=3, score=0.05693174246473177]
 ```
 
 ---
