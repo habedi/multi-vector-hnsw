@@ -5,6 +5,7 @@ import io.github.habedi.mvhnsw.distance.Cosine;
 import io.github.habedi.mvhnsw.index.Index;
 import io.github.habedi.mvhnsw.index.MultiVectorHNSW;
 import io.github.habedi.mvhnsw.index.SearchResult;
+
 import java.util.List;
 
 /**
@@ -17,13 +18,13 @@ public class E01_SimpleSearch {
   public static void main(String[] args) {
     // 1. Configure the index
     Index index =
-        MultiVectorHNSW.builder()
-            .withM(16)
-            .withEfConstruction(200)
-            .withWeightedAverageDistance()
-            .addDistance(new Cosine(), 1.0f) // Using a single distance with a weight of 1.0
-            .and()
-            .build();
+      MultiVectorHNSW.builder()
+        .withM(16)
+        .withEfConstruction(200)
+        .withWeightedAverageDistance()
+        .addDistance(new Cosine(), 1.0f) // Using a single distance with a weight of 1.0
+        .and()
+        .build();
 
     // 2. Add items to the index
     System.out.println("Adding items representing simple 2D points...");

@@ -1,0 +1,43 @@
+digraph MultiVectorEmbedding {
+    fontname = "Helvetica,Arial,sans-serif"
+    layout = dot
+    rankdir = LR
+    ranksep = 0.7
+    nodesep = 0.6
+
+    node [
+    fontname = "Helvetica,Arial,sans-serif",
+    fontsize = 10,
+    shape = box,
+    style = "filled",
+    color = "black",
+    penwidth = 1.6,
+    fillcolor = "white",
+    margin = "0.06,0.04",
+    width = 1.4,
+    height = 0.35,
+    fixedsize = false
+    ]
+
+    edge [
+    fontname = "Helvetica,Arial,sans-serif",
+    fontsize = 10,
+    color = "black",
+    arrowsize = 0.8
+    ]
+
+    // Input document parts
+    title [label = "Document Title", fillcolor = "#D6EAF8"]
+    body [label = "Document Body", fillcolor = "#D6EAF8"]
+    metadata [label = "Document Metadata", fillcolor = "#D6EAF8"]
+
+    // Embeddings
+    title_emb [label = "Title Embedding", fillcolor = "#FADBD8"]
+    body_emb [label = "Body Embedding", fillcolor = "#FADBD8"]
+    metadata_emb [label = "Metadata Embedding", fillcolor = "#FADBD8"]
+
+    // Connections
+    title -> title_emb
+    body -> body_emb
+    metadata -> metadata_emb
+}
