@@ -28,8 +28,8 @@ digraph DistanceAggregation {
     style = "dashed"
     color = "lightgrey"
 
-    listU      [label = "Item A:\n[u₁, u₂, ..., uₙ]", fillcolor = "lightyellow"]
-    listV      [label = "Item B:\n[v₁, v₂, ..., vₙ]", fillcolor = "lightyellow"]
+    listU [label = "Item A:\n[u₁, u₂, ..., uₙ]", fillcolor = "lightyellow"]
+    listV [label = "Item B:\n[v₁, v₂, ..., vₙ]", fillcolor = "lightyellow"]
     distanceFn [label = "Base Distance Function(s):\nCosine, Euclidean, etc.", fillcolor = "lightpink"]
     }
 
