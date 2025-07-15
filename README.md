@@ -20,20 +20,16 @@ A Java implementation of HNSW with multi-vector search support
 
 ---
 
-Multi-Vector HNSW is a Java library that implements
-the [Hierarchical Navigable Small World (HNSW)](https://arxiv.org/abs/1603.09320) algorithm with support for multi-vector
-indexing.
-It lets you index and search objects represented by multiple high-dimensional vectors using common distance functions like
-Euclidean, cosine, and dot product.
+Multi-Vector HNSW is a Java library that implements the [Hierarchical Navigable Small World (HNSW)](https://arxiv.org/abs/1603.09320)
+algorithm with built-in support for multi-vector indexing.
+It lets you index and search objects represented by multiple high-dimensional vectors, using standard distance functions like Euclidean,
+cosine, and dot product.
 
-In many real-world applications, a single vector isn’t enough to represent an object.
-For example, an image might have different feature vectors for color, shape, and texture; a document might have separate
-embeddings for different parts like the title, body, and summary.
-Most HNSW implementations only support one vector per object.
-This makes them less useful when working with complex objects that are better represented by multiple vectors.
-Multi-Vector HNSW solves this by letting each object be indexed with multiple vectors.
-It also lets you choose how to define the distances between objects using a custom aggregated distance function.
-This can allow for more realistic and flexible searches when dealing with complex objects.
+Most vector search libraries assume every object has a single embedding.
+But in real-world use cases (like document search, multi-modal AI, or hybrid dense/sparse setups) you often have multiple embeddings per
+item.
+This library extends HNSW to support that: multi-vector indexing, custom distance aggregation, and a clean Java API with no native
+dependencies.
 
 ### Features
 
@@ -139,6 +135,37 @@ Check out the [examples](examples) directory for more usage examples.
 ### Benchmarks
 
 See the [benches](benches) directory for information on how to run project benchmarks.
+
+#### Sample Results
+
+The table below shows benchmark results for different distance functions using the
+[`se_ds_768`](https://huggingface.co/datasets/habedi/multi-vector-hnsw-datasets) dataset on a machine with 32GB RAM and an AMD Ryzen 5 7600X
+CPU.
+
+Each item is represented by three 768-dimensional vectors.
+The index was built with `M=16` and `efConstruction=200`.
+Training data was used to build the index; test data was used for evaluation.
+
+For each distance function, we report:
+
+* Average query time (in milliseconds)
+* Recall@100 (how many of the top 100 true nearest neighbors were found)
+
+Distances are aggregated using a uniformly-weighted average across the three vectors.
+
+In this setup, average query time is **\~5–10 ms**, with recall above **94%** for all distance functions.
+
+| Distance Function | Train Size | Test Size | Avg Query Time (ms) | Recall\@100 |
+|-------------------|------------|-----------|---------------------|-------------|
+| Squared Euclidean | 26,055     | 2,895     | 10.0 ± 0.0          | 94.28%      |
+| Cosine            | 26,055     | 2,895     | 5.0 ± 2.5           | 94.21%      |
+| Dot Product       | 26,055     | 2,895     | 5.0 ± 0.0           | 94.26%      |
+
+You can reproduce these results by running:
+
+```bash
+make bench-run BENCHMARK_DATASET=se_ds_768
+```
 
 ---
 

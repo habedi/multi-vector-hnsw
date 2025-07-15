@@ -15,6 +15,11 @@ make bench-run BENCHMARK_DATASET=se_ds_768
 make bench-run BENCHMARK_DATASET=se_p_768
 ```
 
+> [!NOTE]
+> These benchmarks are mainly to verify the implementation's correctness and measure the raw throughput of the library on a local machine.
+> In more realistic scenarios, you would typically use the library with your own datasets and measure performance based on your specific use
+> case.
+
 ### Datasets
 
 To run the benchmarks, you need to download the datasets available from the link below and put them inside
@@ -32,6 +37,6 @@ huggingface-cli download habedi/multi-vector-hnsw-datasets --repo-type dataset \
 Note that the command must be run inside this directory (`benches`).
 
 > [!NOTE]
-> You also can use `make bench-data` to download the benchmark datasets automatically.
+> You can also use `make bench-data` to download the benchmark datasets automatically.
 > However, you need to have [huggingface-cli](https://huggingface.co/docs/huggingface_hub/en/guides/cli) installed.
 > You can set up a Python environment with `huggingface-cli` using the provided [pyproject.toml](../pyproject.toml) file.

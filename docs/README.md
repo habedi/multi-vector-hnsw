@@ -40,7 +40,7 @@ HNSW builds a special graph data structure to make this search process incredibl
 
 Here's how it works at a high level:
 
-1. **The Graph Structure**: HNSW organizes data points (the vectors) into a multi-layered graph. Each data point exists as a **node** in
+1. **The Graph Structure**: HNSW organizes data points (the vectors) into a multi-layered graph. Each data point exists as a node in
    this graph.
 2. **Layers**: The bottom layer (Layer 0) contains *all* the data points. Each subsequent layer above it contains a smaller, sparser subset
    of the points from the layer below. Think of these upper layers as "express lanes" or highways that allow for long-distance traversals
@@ -48,7 +48,7 @@ Here's how it works at a high level:
 3. **Insertion**: When a new item is added, it's assigned a random maximum layer (`level`). This `level` is chosen from a probability
    distribution that heavily favors lower layers, ensuring the hierarchy remains balanced. The new node is then inserted into the graph from
    the top layer down to Layer 0. At each layer, it connects to the `M` nearest neighbors it can find.
-4. **Search**: A search starts at an entry point in the **topmost layer**. The algorithm greedily traverses the graph, always moving to the
+4. **Search**: A search starts at an entry point in the topmost layer. The algorithm greedily traverses the graph, always moving to the
    neighbor closest to the query vector. Once it can't find a closer neighbor at the current layer, it drops down to the layer below and
    continues the search. This process repeats until it reaches the bottom layer (Layer 0), where a final, more detailed search is performed
    to find the `k` nearest neighbors from a set of candidates.
@@ -90,11 +90,11 @@ For faster indexing and lower memory usage, you should keep them lower.
 
 At the moment, Multi-Vector HNSW supports the following distance functions out of the box:
 
-| # | Distance Function                                                                            | Formula (for vectors **A**, **B**)        | Range   | Description                                                 |
-|---|----------------------------------------------------------------------------------------------|-------------------------------------------|---------|-------------------------------------------------------------|
-| 1 | [Cosine](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java)                      | $1 - \frac{A \cdot B}{\|A\| \cdot \|B\|}$ | [0, 2]  | Computes the `1 - cosine similarity` between two vectors    |
-| 2 | [Squared Euclidean](../src/main/java/io/github/habedi/mvhnsw/distance/SquaredEuclidean.java) | $\sum_i (A_i - B_i)^2$                    | [0, ∞)  | Computes the squared Euclidean distance between two vectors |
-| 3 | [Dot Product](../src/main/java/io/github/habedi/mvhnsw/distance/DotProduct.java)             | $- (A \cdot B) = -\sum_i A_i B_i$         | [-∞, 0] | Computes the `-1 * dot product` between two vectors         |
+| # | Distance Function                                                                            | Formula (for vectors A, B)                | Range   | Description                                 |
+|---|----------------------------------------------------------------------------------------------|-------------------------------------------|---------|---------------------------------------------|
+| 1 | [Cosine](../src/main/java/io/github/habedi/mvhnsw/distance/Cosine.java)                      | $1 - \frac{A \cdot B}{\|A\| \cdot \|B\|}$ | [0, 2]  | One minus cosine similarity                 |
+| 2 | [Squared Euclidean](../src/main/java/io/github/habedi/mvhnsw/distance/SquaredEuclidean.java) | $\sum_i (A_i - B_i)^2$                    | [0, ∞)  | The squared value of the Euclidean distance |
+| 3 | [Dot Product](../src/main/java/io/github/habedi/mvhnsw/distance/DotProduct.java)             | $- (A \cdot B) = -\sum_i A_i B_i$         | [-∞, 0] | The negative of the dot product             |
 
 > [!NOTE]
 > Squared Euclidean distance gives the same ordering as standard Euclidean distance, but it's faster to compute.
