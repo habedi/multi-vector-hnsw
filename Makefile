@@ -21,12 +21,13 @@ ARGS ?=
 .PHONY: help build package package-release publish test format format-check lint clean setup-hooks \
  test-hooks bench-data bench-jar bench-run
 
+
 help: ## Show this help message
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile | \
-	awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*## .*$$' Makefile | \
+	awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 build: ## Run the full Maven build lifecycle (compile, check, test, and package)
 	@echo "Building project and running all checks..."
