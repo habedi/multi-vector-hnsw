@@ -65,17 +65,19 @@ clean: ## Remove all build artifacts
 	@echo "Cleaning project..."
 	@$(MVN) -B clean
 
-setup-hooks: ## Set up pre-commit hooks
+setup-hooks: ## Install all pre-commit hooks (pre-commit and pre-push)
 	@echo "Setting up pre-commit hooks..."
 	@if ! command -v pre-commit &> /dev/null; then \
 	   echo "pre-commit not found. Please install it using 'pip install pre-commit'"; \
 	   exit 1; \
 	fi
-	@pre-commit install --install-hooks
+	@pre-commit install --hook-type pre-commit
+	@pre-commit install --hook-type pre-push
+	@pre-commit install-hooks
 
 test-hooks: ## Test pre-commit hooks on all files
 	@echo "Testing pre-commit hooks..."
-	@./scripts/test_precommit_hooks.sh
+	@pre-commit run --all-files
 
 bench-data: ## Download the benchmark datasets
 	@echo "Downloading the datasets used for benchmarks..."
