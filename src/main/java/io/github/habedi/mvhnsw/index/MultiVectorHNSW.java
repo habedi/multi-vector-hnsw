@@ -192,6 +192,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
         return false;
       }
       node.deleted = true;
+      vectorMap.remove(id);
       log.debug("Marked item {} for deletion", id);
       return true;
     } finally {
