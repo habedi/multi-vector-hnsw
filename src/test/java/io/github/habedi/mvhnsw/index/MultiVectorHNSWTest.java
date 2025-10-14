@@ -295,4 +295,121 @@ class MultiVectorHNSWTest {
           assertTrue(index.get((long) totalItems).isPresent());
         });
   }
+
+  @Test
+  void testVacuumIsDeterministic() throws Exception {
+    // Use TreeMap for deterministic iteration order
+    Map<Long, List<FloatVector>> items = new java.util.TreeMap<>();
+    for (long i = 0; i < 100; i++) {
+      items.put(i, List.of(FloatVector.of((float) i, (float) i)));
+    }
+
+    // 1. Build index1, which will have random levels
+    Index index1 =
+        MultiVectorHNSW.builder()
+            .withM(10)
+            .withEfConstruction(100)
+            .withWeightedAverageDistance()
+            .addDistance(new SquaredEuclidean(), 1.0f)
+            .and()
+            .build();
+    index1.addAll(items);
+
+    // 2. Extract levels from index1 to build an identical index2
+    var nodesField = MultiVectorHNSW.class.getDeclaredField("nodes");
+    nodesField.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    Map<Long, Object> nodes1Map = (Map<Long, Object>) nodesField.get(index1);
+
+    Map<Long, Integer> levels = new java.util.HashMap<>();
+    for (Object node : nodes1Map.values()) {
+      var idField = node.getClass().getDeclaredField("id");
+      idField.setAccessible(true);
+      long id = (long) idField.get(node);
+
+      var levelField = node.getClass().getDeclaredField("level");
+      levelField.setAccessible(true);
+      int level = (int) levelField.get(node);
+      levels.put(id, level);
+    }
+
+    // 3. Build index2 deterministically with the same levels and insertion order
+    Index index2 =
+        MultiVectorHNSW.builder()
+            .withM(10)
+            .withEfConstruction(100)
+            .withWeightedAverageDistance()
+            .addDistance(new SquaredEuclidean(), 1.0f)
+            .and()
+            .build();
+
+    var privateAddMethod =
+        MultiVectorHNSW.class.getDeclaredMethod("add", long.class, List.class, int.class);
+    privateAddMethod.setAccessible(true);
+
+    for (Map.Entry<Long, List<FloatVector>> entry : items.entrySet()) {
+      privateAddMethod.invoke(index2, entry.getKey(), entry.getValue(), levels.get(entry.getKey()));
+    }
+
+    // 4. Now that we have two identical indexes, test that vacuum behaves identically
+    index1.remove(50L);
+    index2.remove(50L);
+    index1.vacuum();
+    index2.vacuum();
+
+    // 5. Compare the internal graph structures
+    @SuppressWarnings("unchecked")
+    Map<Long, Object> nodes1AfterVacuum = (Map<Long, Object>) nodesField.get(index1);
+    @SuppressWarnings("unchecked")
+    Map<Long, Object> nodes2AfterVacuum = (Map<Long, Object>) nodesField.get(index2);
+
+    assertEquals(nodes1AfterVacuum.size(), nodes2AfterVacuum.size());
+
+    for (long id : nodes1AfterVacuum.keySet()) {
+      var node1 = nodes1AfterVacuum.get(id);
+      var node2 = nodes2AfterVacuum.get(id);
+      assertNotNull(node2, "Node " + id + " missing in second index");
+
+      var connectionsField = node1.getClass().getDeclaredField("connections");
+      connectionsField.setAccessible(true);
+
+      @SuppressWarnings("unchecked")
+      List<Object>[] connections1 = (List<Object>[]) connectionsField.get(node1);
+      @SuppressWarnings("unchecked")
+      List<Object>[] connections2 = (List<Object>[]) connectionsField.get(node2);
+
+      assertEquals(connections1.length, connections2.length, "Node " + id + " has different level");
+      for (int i = 0; i < connections1.length; i++) {
+        var c1 =
+            connections1[i].stream()
+                .map(
+                    n -> {
+                      try {
+                        var idField = n.getClass().getDeclaredField("id");
+                        idField.setAccessible(true);
+                        return (long) idField.get(n);
+                      } catch (Exception e) {
+                        throw new RuntimeException(e);
+                      }
+                    })
+                .collect(java.util.stream.Collectors.toSet());
+
+        var c2 =
+            connections2[i].stream()
+                .map(
+                    n -> {
+                      try {
+                        var idField = n.getClass().getDeclaredField("id");
+                        idField.setAccessible(true);
+                        return (long) idField.get(n);
+                      } catch (Exception e) {
+                        throw new RuntimeException(e);
+                      }
+                    })
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertEquals(c1, c2, "Connections at level " + i + " for node " + id + " do not match");
+      }
+    }
+  }
 }
