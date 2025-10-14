@@ -219,12 +219,16 @@ public final class FloatVector implements Vector<Float>, Serializable {
 
   @Override
   public double cosine(Vector<Float> other) {
+    if (this.equals(other)) {
+      return 1.0;
+    }
     double dot = dot(other);
     double norms = this.norm() * other.norm();
     if (norms == 0.0) {
       return 0.0;
     }
-    return dot / norms;
+    double similarity = dot / norms;
+    return Math.max(-1.0, Math.min(1.0, similarity));
   }
 
   @Override

@@ -42,7 +42,7 @@ class CosineTest {
     FloatVector v2 = FloatVector.of(1.0f, 2.0f, 3.0f);
     // Similarity is 0 if a norm is 0, so distance is 1
     assertEquals(1.0, distance.compute(v1, v2), 0.0001);
-    assertEquals(1.0, distance.compute(v1, v1), 0.0001);
+    assertEquals(0.0, distance.compute(v1, v1), 0.0001);
   }
 
   @Test
