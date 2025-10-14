@@ -53,10 +53,6 @@ format: ## Format Java source files
 	@echo "Formatting source code..."
 	@$(MVN) -B spotless:apply
 
-format-check: ## Check code formatting without applying changes
-	@echo "Checking code formatting..."
-	@$(MVN) -B spotless:check
-
 lint: ## Check code style
 	@echo "Checking code style..."
 	@$(MVN) -B checkstyle:check
