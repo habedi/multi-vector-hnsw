@@ -125,7 +125,7 @@ class FloatVectorTest {
     FloatVector v2 = FloatVector.of(1.0f, 1.0f);
     assertEquals(0.0, v1.cosine(v2), 0.0001);
     assertEquals(0.0, v2.cosine(v1), 0.0001);
-    assertEquals(0.0, v1.cosine(v1), 0.0001);
+    assertEquals(1.0, v1.cosine(v1), 0.0001);
   }
 
   @Test

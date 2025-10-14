@@ -17,8 +17,8 @@ The figure below shows an example of how a complex object like a document can be
 
 The HNSW algorithm is relatively flexible when it comes to distance functions. The main requirement is that the function produces scalar
 values that are consistent with the similarity ordering of items. That means if item A is more similar to a query than item B, then the
-computed distance from A to the query should be lower than the distance from B. The distance function does not need to be a proper metric (
-for example, it can violate the triangle inequality) and does not need to be non-negative. This flexibility makes it possible to plug in
+computed distance from A to the query should be lower than the distance from B. The distance function does not need to be a proper metric
+(for example, it can violate the triangle inequality) and does not need to be non-negative. This flexibility makes it possible to plug in
 custom distance aggregation strategies (like max, min, weighted average, etc.) without breaking the correctness of HNSW's graph traversal
 and search logic.
 

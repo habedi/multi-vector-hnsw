@@ -21,12 +21,13 @@ ARGS ?=
 .PHONY: help build package package-release publish test format format-check lint clean setup-hooks \
  test-hooks bench-data bench-jar bench-run
 
+
 help: ## Show this help message
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile | \
-	awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*## .*$$' Makefile | \
+	awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 build: ## Run the full Maven build lifecycle (compile, check, test, and package)
 	@echo "Building project and running all checks..."
@@ -52,10 +53,6 @@ format: ## Format Java source files
 	@echo "Formatting source code..."
 	@$(MVN) -B spotless:apply
 
-format-check: ## Check code formatting without applying changes
-	@echo "Checking code formatting..."
-	@$(MVN) -B spotless:check
-
 lint: ## Check code style
 	@echo "Checking code style..."
 	@$(MVN) -B checkstyle:check
@@ -64,17 +61,19 @@ clean: ## Remove all build artifacts
 	@echo "Cleaning project..."
 	@$(MVN) -B clean
 
-setup-hooks: ## Set up pre-commit hooks
-	@echo "Setting up pre-commit hooks..."
+setup-hooks: ## Install all Git hooks (pre-commit and pre-push)
+	@echo "Setting up Git hooks..."
 	@if ! command -v pre-commit &> /dev/null; then \
 	   echo "pre-commit not found. Please install it using 'pip install pre-commit'"; \
 	   exit 1; \
 	fi
-	@pre-commit install --install-hooks
+	@pre-commit install --hook-type pre-commit
+	@pre-commit install --hook-type pre-push
+	@pre-commit install-hooks
 
-test-hooks: ## Test pre-commit hooks on all files
-	@echo "Testing pre-commit hooks..."
-	@./scripts/test_precommit_hooks.sh
+test-hooks: ## Test Git hooks on all files
+	@echo "Testing Git hooks..."
+	@pre-commit run --all-files
 
 bench-data: ## Download the benchmark datasets
 	@echo "Downloading the datasets used for benchmarks..."

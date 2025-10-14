@@ -91,6 +91,10 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
   @Override
   public void add(long id, List<FloatVector> vectors) {
+    add(id, vectors, assignLevel());
+  }
+
+  private void add(long id, List<FloatVector> vectors, int level) {
     lock.writeLock().lock();
     try {
       Node existingNode = nodes.get(id);
@@ -99,7 +103,6 @@ public final class MultiVectorHNSW implements Index, Serializable {
             "Item with ID " + id + " already exists. Please remove it first to update.");
       }
 
-      int level = assignLevel();
       log.debug("Adding item {} at level {}", id, level);
       Node newNode = new Node(id, level, m);
       nodes.put(id, newNode);
@@ -189,6 +192,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
         return false;
       }
       node.deleted = true;
+      vectorMap.remove(id);
       log.debug("Marked item {} for deletion", id);
       return true;
     } finally {
@@ -217,11 +221,13 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
       if (currentEntryPoint.deleted) {
         Optional<Node> newEntryPoint =
-            nodes.values().stream().filter(node -> !node.deleted).findAny();
+            nodes.values().stream()
+                .filter(node -> !node.deleted)
+                .max(Comparator.comparingInt(node -> node.level));
         if (newEntryPoint.isEmpty()) {
           return Collections.emptyList();
         }
-        currentEntryPoint = newEntryPoint.get();
+        this.entryPoint = currentEntryPoint = newEntryPoint.get();
         log.debug(
             "Original entry point was deleted. Using temporary entry point: {}",
             currentEntryPoint.id);
@@ -325,16 +331,32 @@ public final class MultiVectorHNSW implements Index, Serializable {
       if (entryPoint == null) {
         return;
       }
-      Map<Long, List<FloatVector>> liveItems =
+
+      var liveNodes =
           nodes.values().stream()
               .filter(node -> !node.deleted)
+              .sorted(Comparator.comparingLong(node -> node.id))
+              .toList();
+
+      var liveVectors =
+          liveNodes.stream()
               .map(node -> Map.entry(node.id, vectorMap.get(node.id)))
               .filter(entry -> entry.getValue() != null)
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+              .collect(
+                  Collectors.toMap(
+                      Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
-      log.info("Starting vacuum. Rebuilding index with {} live items.", liveItems.size());
+      log.info("Starting vacuum. Rebuilding index with {} live items.", liveNodes.size());
       clear();
-      addAll(liveItems);
+
+      liveNodes.forEach(
+          node -> {
+            List<FloatVector> vectors = liveVectors.get(node.id);
+            if (vectors != null) {
+              add(node.id, vectors, node.level);
+            }
+          });
+
       log.info("Vacuum complete.");
     } finally {
       lock.writeLock().unlock();
