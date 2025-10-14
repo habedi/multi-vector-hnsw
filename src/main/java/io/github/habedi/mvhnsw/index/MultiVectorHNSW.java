@@ -217,7 +217,9 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
       if (currentEntryPoint.deleted) {
         Optional<Node> newEntryPoint =
-            nodes.values().stream().filter(node -> !node.deleted).findAny();
+            nodes.values().stream()
+                .filter(node -> !node.deleted)
+                .max(Comparator.comparingInt(node -> node.level));
         if (newEntryPoint.isEmpty()) {
           return Collections.emptyList();
         }

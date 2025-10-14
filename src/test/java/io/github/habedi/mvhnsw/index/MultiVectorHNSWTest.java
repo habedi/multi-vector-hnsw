@@ -188,6 +188,50 @@ class MultiVectorHNSWTest {
   }
 
   @Test
+  void testEntryPointUpdateAfterDeletionToHighestLevelNode() throws Exception {
+    index.add(1L, vectors1);
+    index.add(2L, vectors2);
+    index.add(3L, List.of(FloatVector.of(100.0f, 100.0f)));
+
+    var entryPointField = MultiVectorHNSW.class.getDeclaredField("entryPoint");
+    entryPointField.setAccessible(true);
+
+    var initialEntryPoint = entryPointField.get(index);
+    var nodeClass = initialEntryPoint.getClass();
+    var idField = nodeClass.getDeclaredField("id");
+    idField.setAccessible(true);
+    long initialEntryPointId = (long) idField.get(initialEntryPoint);
+
+    index.remove(initialEntryPointId);
+
+    index.search(vectors2, 1, 10);
+
+    var updatedEntryPoint = entryPointField.get(index);
+    var levelField = nodeClass.getDeclaredField("level");
+    levelField.setAccessible(true);
+    int updatedEntryPointLevel = (int) levelField.get(updatedEntryPoint);
+
+    var nodesField = MultiVectorHNSW.class.getDeclaredField("nodes");
+    nodesField.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    var nodes = (Map<Long, Object>) nodesField.get(index);
+
+    int maxLevel = 0;
+    for (Object node : nodes.values()) {
+      var deletedField = node.getClass().getDeclaredField("deleted");
+      deletedField.setAccessible(true);
+      if (!(boolean) deletedField.get(node)) {
+        int level = (int) levelField.get(node);
+        if (level > maxLevel) {
+          maxLevel = level;
+        }
+      }
+    }
+
+    assertEquals(maxLevel, updatedEntryPointLevel);
+  }
+
+  @Test
   void testBuilderValidation() {
     assertThrows(IllegalArgumentException.class, () -> MultiVectorHNSW.builder().withM(0));
     assertThrows(
