@@ -221,7 +221,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
         if (newEntryPoint.isEmpty()) {
           return Collections.emptyList();
         }
-        currentEntryPoint = newEntryPoint.get();
+        this.entryPoint = currentEntryPoint = newEntryPoint.get();
         log.debug(
             "Original entry point was deleted. Using temporary entry point: {}",
             currentEntryPoint.id);

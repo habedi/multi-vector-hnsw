@@ -92,6 +92,31 @@ class MultiVectorHNSWTest {
   }
 
   @Test
+  void testEntryPointUpdateAfterDeletion() throws Exception {
+    index.add(1L, vectors1);
+    index.add(2L, vectors2);
+
+    var entryPointField = MultiVectorHNSW.class.getDeclaredField("entryPoint");
+    entryPointField.setAccessible(true);
+
+    var initialEntryPoint = entryPointField.get(index);
+    var nodeClass = initialEntryPoint.getClass();
+    var idField = nodeClass.getDeclaredField("id");
+    idField.setAccessible(true);
+    long initialEntryPointId = (long) idField.get(initialEntryPoint);
+
+    index.remove(initialEntryPointId);
+
+    index.search(vectors2, 1, 10);
+
+    var updatedEntryPoint = entryPointField.get(index);
+
+    var deletedField = nodeClass.getDeclaredField("deleted");
+    deletedField.setAccessible(true);
+    assertFalse((boolean) deletedField.get(updatedEntryPoint));
+  }
+
+  @Test
   void testSearchThrowsIfEfSearchIsLessThanK() {
     index.add(1L, vectors1);
     assertThrows(IllegalArgumentException.class, () -> index.search(vectors1, 5, 4));
