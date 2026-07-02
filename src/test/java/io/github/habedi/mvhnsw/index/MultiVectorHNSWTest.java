@@ -83,6 +83,45 @@ class MultiVectorHNSWTest {
   }
 
   @Test
+  void testAddValidatesVectors() {
+    assertThrows(NullPointerException.class, () -> index.add(1L, null));
+    assertThrows(IllegalArgumentException.class, () -> index.add(1L, List.of()));
+    assertThrows(
+        NullPointerException.class,
+        () -> index.add(1L, java.util.Arrays.asList((FloatVector) null)));
+    assertEquals(0, index.size());
+  }
+
+  @Test
+  void testAddAllValidatesItemsBeforeInserting() {
+    assertThrows(NullPointerException.class, () -> index.addAll(null));
+
+    Map<Long, List<FloatVector>> items = Map.of(1L, vectors1, 2L, List.of());
+    assertThrows(IllegalArgumentException.class, () -> index.addAll(items));
+    assertEquals(0, index.size()); // No partial insertion.
+  }
+
+  @Test
+  void testAddAllRejectsDuplicateIdWithoutPartialInsert() {
+    index.add(1L, vectors1);
+    Map<Long, List<FloatVector>> items = Map.of(1L, vectors2, 2L, vectors2);
+    assertThrows(IllegalArgumentException.class, () -> index.addAll(items));
+    assertEquals(1, index.size()); // No partial insertion.
+    assertTrue(index.get(2L).isEmpty());
+    assertEquals(vectors1, index.get(1L).get()); // Existing item is unchanged.
+  }
+
+  @Test
+  void testGetDistanceReturnsConfiguredDistance() {
+    io.github.habedi.mvhnsw.distance.MultiVectorDistance distance =
+        new io.github.habedi.mvhnsw.distance.WeightedAverageDistance(
+            List.of(new SquaredEuclidean()), new float[] {1.0f});
+    Index customIndex = MultiVectorHNSW.builder().withDistance(distance).build();
+    assertSame(distance, customIndex.getDistance());
+    assertNotNull(index.getDistance());
+  }
+
+  @Test
   void testSearchFunctionality() {
     index.add(1L, vectors1);
     index.add(2L, vectors2);

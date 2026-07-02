@@ -22,7 +22,9 @@ public interface Index {
    *
    * @param id A unique identifier for the item.
    * @param vectors A list of {@link FloatVector}s that represents the item.
-   * @throws IllegalArgumentException if an item with the same ID already exists.
+   * @throws NullPointerException if {@code vectors} is null or contains a null element.
+   * @throws IllegalArgumentException if {@code vectors} is empty, or if an item with the same ID
+   *     already exists.
    */
   void add(long id, List<FloatVector> vectors);
 
@@ -41,8 +43,16 @@ public interface Index {
   /**
    * Adds a batch of items to the index.
    *
+   * <p>The batch is inserted as a single write operation: concurrent writers cannot interleave
+   * their insertions with it. All items are validated before any item is inserted, so an invalid
+   * entry or a duplicate ID leaves the index unchanged.
+   *
    * @param items A map where keys are the unique item IDs and values are the corresponding lists of
    *     vectors.
+   * @throws NullPointerException if {@code items} is null, or if a vector list is null or contains
+   *     a null element.
+   * @throws IllegalArgumentException if a vector list is empty, or if an item with the same ID
+   *     already exists.
    */
   void addAll(Map<Long, List<FloatVector>> items);
 

@@ -142,7 +142,17 @@ public class BenchmarkCLI implements Callable<Integer> {
 
       double totalHits = (hitsResult != null) ? hitsResult.getScore() : 0.0;
       double totalQueries = (totalQueriesResult != null) ? totalQueriesResult.getScore() : 0.0;
-      double recall = (totalQueries == 0) ? 0 : totalHits / (totalQueries * K);
+
+      // Recall is |retrieved ∩ relevant| / |relevant|. The counters accumulate across all
+      // measurement iterations, and each iteration runs every query once, so the denominator is
+      // the number of counted queries times the mean ground-truth size (capped at K), not K.
+      double avgRelevant =
+        data.groundTruth().values().stream()
+          .mapToDouble(truth -> Math.min(K, truth.size()))
+          .average()
+          .orElse(0.0);
+      double recall =
+        (totalQueries == 0 || avgRelevant == 0) ? 0 : totalHits / (totalQueries * avgRelevant);
 
       // JMH score for throughput is in (ops/ms). An "op" is one full run of the benchmark method.
       double throughputOpsPerMs = r.getPrimaryResult().getScore();

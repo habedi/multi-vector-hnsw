@@ -3,6 +3,11 @@ package io.github.habedi.mvhnsw.common;
 import static jdk.incubator.vector.FloatVector.SPECIES_PREFERRED;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
@@ -139,6 +144,42 @@ class FloatVectorTest {
     assertNotEquals(v1, v3);
     assertNotEquals(null, v1);
     assertNotEquals(new Object(), v1);
+  }
+
+  @Test
+  void testNormAfterSerializationRoundTrip() throws IOException, ClassNotFoundException {
+    FloatVector original = FloatVector.of(3.0f, 4.0f);
+    FloatVector copy = serializeAndDeserialize(original);
+    assertEquals(original, copy);
+    assertEquals(5.0, copy.norm(), 0.0001);
+  }
+
+  @Test
+  void testNormOfZeroVectorAfterSerializationRoundTrip()
+      throws IOException, ClassNotFoundException {
+    FloatVector original = FloatVector.of(0.0f, 0.0f, 0.0f);
+    FloatVector copy = serializeAndDeserialize(original);
+    assertEquals(0.0, copy.norm(), 0.0001);
+  }
+
+  @Test
+  void testNormAfterSerializationOfComputedNorm() throws IOException, ClassNotFoundException {
+    FloatVector original = FloatVector.of(3.0f, 4.0f);
+    assertEquals(5.0, original.norm(), 0.0001); // Populate the cache before serializing.
+    FloatVector copy = serializeAndDeserialize(original);
+    assertEquals(5.0, copy.norm(), 0.0001);
+  }
+
+  private static FloatVector serializeAndDeserialize(FloatVector vector)
+      throws IOException, ClassNotFoundException {
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    try (ObjectOutputStream oos = new ObjectOutputStream(bytes)) {
+      oos.writeObject(vector);
+    }
+    try (ObjectInputStream ois =
+        new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+      return (FloatVector) ois.readObject();
+    }
   }
 
   @Test

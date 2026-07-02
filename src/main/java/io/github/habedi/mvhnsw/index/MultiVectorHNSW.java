@@ -91,67 +91,90 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
   @Override
   public void add(long id, List<FloatVector> vectors) {
-    add(id, vectors, assignLevel());
+    validateVectors(vectors);
+    lock.writeLock().lock();
+    try {
+      addInternal(id, vectors, assignLevel());
+    } finally {
+      lock.writeLock().unlock();
+    }
   }
 
   private void add(long id, List<FloatVector> vectors, int level) {
     lock.writeLock().lock();
     try {
-      Node existingNode = nodes.get(id);
-      if (existingNode != null && !existingNode.deleted) {
-        throw new IllegalArgumentException(
-            "Item with ID " + id + " already exists. Please remove it first to update.");
-      }
-
-      log.debug("Adding item {} at level {}", id, level);
-      Node newNode = new Node(id, level, m);
-      nodes.put(id, newNode);
-      vectorMap.put(id, vectors);
-
-      Node currentEntryPoint = entryPoint;
-      if (currentEntryPoint == null) {
-        entryPoint = newNode;
-        return;
-      }
-
-      int entryPointLevel = currentEntryPoint.level;
-      Node nearestNode = currentEntryPoint;
-
-      // Phase 1: Find the nearest neighbor in the upper layers
-      for (int l = entryPointLevel; l > level; l--) {
-        PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, 1, l);
-        if (candidates.isEmpty()) {
-          break;
-        }
-        nearestNode = nodes.get(candidates.peek().id);
-      }
-
-      // Phase 2: Insert the new node by connecting it to its neighbors layer by layer
-      for (int l = Math.min(level, entryPointLevel); l >= 0; l--) {
-        PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, efConstruction, l);
-        if (candidates.isEmpty()) {
-          break;
-        }
-
-        List<Neighbor> neighbors = selectNeighborsHeuristic(candidates, m);
-        newNode.setConnections(l, neighbors);
-
-        for (Neighbor neighbor : neighbors) {
-          Node neighborNode = nodes.get(neighbor.id);
-          if (neighborNode != null) {
-            addConnection(neighborNode, new Neighbor(id, neighbor.distance), l);
-          }
-        }
-        assert candidates.peek() != null;
-        nearestNode = nodes.get(candidates.peek().id);
-      }
-
-      if (level > entryPointLevel) {
-        entryPoint = newNode;
-        log.debug("New entry point: Node {} at level {}", newNode.id, level);
-      }
+      addInternal(id, vectors, level);
     } finally {
       lock.writeLock().unlock();
+    }
+  }
+
+  /** Validates the vectors argument of a public write operation at the call site. */
+  private static void validateVectors(List<FloatVector> vectors) {
+    Objects.requireNonNull(vectors, "Vectors must not be null.");
+    if (vectors.isEmpty()) {
+      throw new IllegalArgumentException("Vectors must not be empty.");
+    }
+    for (FloatVector vector : vectors) {
+      Objects.requireNonNull(vector, "Vectors must not contain null elements.");
+    }
+  }
+
+  /** Inserts an item into the graph. The caller must hold the write lock. */
+  private void addInternal(long id, List<FloatVector> vectors, int level) {
+    Node existingNode = nodes.get(id);
+    if (existingNode != null && !existingNode.deleted) {
+      throw new IllegalArgumentException(
+          "Item with ID " + id + " already exists. Please remove it first to update.");
+    }
+
+    log.debug("Adding item {} at level {}", id, level);
+    Node newNode = new Node(id, level, m);
+    nodes.put(id, newNode);
+    vectorMap.put(id, vectors);
+
+    Node currentEntryPoint = entryPoint;
+    if (currentEntryPoint == null) {
+      entryPoint = newNode;
+      return;
+    }
+
+    int entryPointLevel = currentEntryPoint.level;
+    Node nearestNode = currentEntryPoint;
+
+    // Phase 1: Find the nearest neighbor in the upper layers
+    for (int l = entryPointLevel; l > level; l--) {
+      PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, 1, l);
+      Neighbor closest = candidates.peek();
+      if (closest == null) {
+        break;
+      }
+      nearestNode = nodes.get(closest.id);
+    }
+
+    // Phase 2: Insert the new node by connecting it to its neighbors layer by layer
+    for (int l = Math.min(level, entryPointLevel); l >= 0; l--) {
+      PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, efConstruction, l);
+      Neighbor closest = candidates.peek();
+      if (closest == null) {
+        break;
+      }
+
+      List<Neighbor> neighbors = selectNeighborsHeuristic(candidates, m);
+      newNode.setConnections(l, neighbors);
+
+      for (Neighbor neighbor : neighbors) {
+        Node neighborNode = nodes.get(neighbor.id);
+        if (neighborNode != null) {
+          addConnection(neighborNode, new Neighbor(id, neighbor.distance), l);
+        }
+      }
+      nearestNode = nodes.get(closest.id);
+    }
+
+    if (level > entryPointLevel) {
+      entryPoint = newNode;
+      log.debug("New entry point: Node {} at level {}", newNode.id, level);
     }
   }
 
@@ -178,7 +201,12 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
-  /** A simple heuristic to select the best neighbors from a candidate set. */
+  /**
+   * A simple heuristic to select the best neighbors from a candidate set.
+   *
+   * <p>Note that {@link PriorityQueue#stream()} emits elements in internal heap order, not in
+   * priority order, so the {@code sorted()} call is required for correctness.
+   */
   private List<Neighbor> selectNeighborsHeuristic(PriorityQueue<Neighbor> candidates, int count) {
     return candidates.stream().sorted().limit(count).collect(Collectors.toList());
   }
@@ -202,8 +230,26 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
   @Override
   public void addAll(Map<Long, List<FloatVector>> items) {
+    Objects.requireNonNull(items, "Items must not be null.");
     log.info("Adding {} items to the index.", items.size());
-    items.forEach(this::add);
+    lock.writeLock().lock();
+    try {
+      // Validate the whole batch before inserting anything, so an invalid entry or a duplicate ID
+      // does not leave the index partially updated.
+      for (Map.Entry<Long, List<FloatVector>> entry : items.entrySet()) {
+        validateVectors(entry.getValue());
+        Node existingNode = nodes.get(entry.getKey());
+        if (existingNode != null && !existingNode.deleted) {
+          throw new IllegalArgumentException(
+              "Item with ID "
+                  + entry.getKey()
+                  + " already exists. Please remove it first to update.");
+        }
+      }
+      items.forEach((id, vectors) -> addInternal(id, vectors, assignLevel()));
+    } finally {
+      lock.writeLock().unlock();
+    }
   }
 
   @Override
@@ -315,13 +361,18 @@ public final class MultiVectorHNSW implements Index, Serializable {
   public void clear() {
     lock.writeLock().lock();
     try {
-      vectorMap.clear();
-      nodes.clear();
-      entryPoint = null;
-      log.info("Index cleared.");
+      clearInternal();
     } finally {
       lock.writeLock().unlock();
     }
+  }
+
+  /** Clears all index state. The caller must hold the write lock. */
+  private void clearInternal() {
+    vectorMap.clear();
+    nodes.clear();
+    entryPoint = null;
+    log.info("Index cleared.");
   }
 
   @Override
@@ -347,13 +398,13 @@ public final class MultiVectorHNSW implements Index, Serializable {
                       Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
       log.info("Starting vacuum. Rebuilding index with {} live items.", liveNodes.size());
-      clear();
+      clearInternal();
 
       liveNodes.forEach(
           node -> {
             List<FloatVector> vectors = liveVectors.get(node.id);
             if (vectors != null) {
-              add(node.id, vectors, node.level);
+              addInternal(node.id, vectors, node.level);
             }
           });
 
@@ -384,8 +435,8 @@ public final class MultiVectorHNSW implements Index, Serializable {
     while (!candidates.isEmpty()) {
       Neighbor candidate = candidates.poll();
       if (results.size() >= ef) {
-        assert results.peek() != null;
-        if (candidate.distance > results.peek().distance) {
+        Neighbor furthestResult = Objects.requireNonNull(results.peek());
+        if (candidate.distance > furthestResult.distance) {
           break;
         }
       }

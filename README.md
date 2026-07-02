@@ -37,7 +37,7 @@ This library extends HNSW to support that: multi-vector indexing, custom distanc
 * Bulk inserts and soft delete support
 * Save and load support for persisting indexes to disk
 * Fast distance calculations using SIMD instructions via Java Vector API
-* Pure Java 17 implementation with no native dependencies
+* Pure Java implementation with no native dependencies (requires Java 17 or newer)
 
 ---
 
