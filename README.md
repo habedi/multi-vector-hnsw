@@ -8,7 +8,6 @@
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/habedi/multi-vector-hnsw/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/multi-vector-hnsw/actions/workflows/tests.yml)
 [![Code Coverage](https://img.shields.io/codecov/c/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codecov)](https://codecov.io/gh/habedi/multi-vector-hnsw)
-[![Code Quality](https://img.shields.io/codefactor/grade/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/multi-vector-hnsw)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.habedi/multi-vector-hnsw?label=maven&style=flat&labelColor=282c34&logo=apache-maven)](https://central.sonatype.com/artifact/io.github.habedi/multi-vector-hnsw)
 [![Docs](https://img.shields.io/badge/docs-latest-007ec6?style=flat&labelColor=282c34&logo=readthedocs)](docs)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-007ec6?style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/multi-vector-hnsw)
