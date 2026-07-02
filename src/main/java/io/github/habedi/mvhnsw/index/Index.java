@@ -64,6 +64,9 @@ public interface Index {
    * @param efSearch The size of the dynamic candidate list for the search. A larger value leads to
    *     more accurate results at the cost of performance. Must be >= k.
    * @return A list of {@link SearchResult}s, sorted by distance in ascending order.
+   * @throws NullPointerException if {@code queryVectors} is null or contains a null element.
+   * @throws IllegalArgumentException if {@code queryVectors} is empty, if {@code k} is not
+   *     positive, or if {@code efSearch} is less than {@code k}.
    */
   List<SearchResult> search(List<FloatVector> queryVectors, int k, int efSearch);
 
@@ -71,8 +74,8 @@ public interface Index {
    * Retrieves the list of vectors for a given item ID.
    *
    * @param id The unique identifier of the item.
-   * @return An {@link Optional} containing the list of vectors if the item exists and has not been
-   *     deleted, or an empty Optional otherwise.
+   * @return An {@link Optional} containing an immutable list of the item's vectors if the item
+   *     exists and has not been deleted, or an empty Optional otherwise.
    */
   Optional<List<FloatVector>> get(long id);
 

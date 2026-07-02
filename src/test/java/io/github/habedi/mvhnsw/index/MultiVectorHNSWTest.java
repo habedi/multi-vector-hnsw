@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,18 @@ class MultiVectorHNSWTest {
             .addDistance(new SquaredEuclidean(), 1.0f)
             .and()
             .build();
+  }
+
+  /** Builds an index configured for items with exactly two vectors. */
+  private static Index twoVectorIndex() {
+    return MultiVectorHNSW.builder()
+        .withM(10)
+        .withEfConstruction(100)
+        .withWeightedAverageDistance()
+        .addDistance(new SquaredEuclidean(), 0.5f)
+        .addDistance(new SquaredEuclidean(), 0.5f)
+        .and()
+        .build();
   }
 
   @Test
@@ -112,6 +125,48 @@ class MultiVectorHNSWTest {
   }
 
   @Test
+  void testFirstAddRejectsMismatchedVectorCount() {
+    Index twoVector = twoVectorIndex();
+    assertThrows(IllegalArgumentException.class, () -> twoVector.add(1L, vectors1));
+    assertEquals(0, twoVector.size());
+  }
+
+  @Test
+  void testFailedAddLeavesIndexUnchanged() {
+    Index twoVector = twoVectorIndex();
+    List<FloatVector> valid = List.of(FloatVector.of(1.0f, 2.0f), FloatVector.of(3.0f, 4.0f));
+    twoVector.add(1L, valid);
+
+    assertThrows(IllegalArgumentException.class, () -> twoVector.add(2L, vectors1));
+
+    assertEquals(1, twoVector.size());
+    assertTrue(twoVector.get(2L).isEmpty());
+    List<SearchResult> results = twoVector.search(valid, 1, 10);
+    assertEquals(1, results.size());
+    assertEquals(1L, results.get(0).id());
+  }
+
+  @Test
+  void testAddStoresACopyOfTheVectorList() {
+    List<FloatVector> mutable = new java.util.ArrayList<>(vectors1);
+    index.add(1L, mutable);
+    mutable.set(0, FloatVector.of(99.0f, 99.0f));
+    assertEquals(vectors1, index.get(1L).get());
+  }
+
+  @Test
+  void testAddAfterEntryPointRemovalKeepsItemsReachable() {
+    index.add(1L, vectors1);
+    index.remove(1L);
+    index.add(2L, vectors2);
+    index.add(3L, vectors1);
+
+    List<SearchResult> results = index.search(vectors2, 2, 10);
+    assertEquals(2, results.size());
+    assertEquals(2L, results.get(0).id());
+  }
+
+  @Test
   void testGetDistanceReturnsConfiguredDistance() {
     io.github.habedi.mvhnsw.distance.MultiVectorDistance distance =
         new io.github.habedi.mvhnsw.distance.WeightedAverageDistance(
@@ -159,6 +214,17 @@ class MultiVectorHNSWTest {
   void testSearchThrowsIfEfSearchIsLessThanK() {
     index.add(1L, vectors1);
     assertThrows(IllegalArgumentException.class, () -> index.search(vectors1, 5, 4));
+  }
+
+  @Test
+  void testSearchValidatesArguments() {
+    index.add(1L, vectors1);
+    assertThrows(NullPointerException.class, () -> index.search(null, 1, 10));
+    assertThrows(IllegalArgumentException.class, () -> index.search(List.of(), 1, 10));
+    assertThrows(
+        NullPointerException.class,
+        () -> index.search(java.util.Arrays.asList((FloatVector) null), 1, 10));
+    assertThrows(IllegalArgumentException.class, () -> index.search(vectors1, 0, 10));
   }
 
   @Test
@@ -279,6 +345,12 @@ class MultiVectorHNSWTest {
   }
 
   @Test
+  void testBuilderRejectsMLessThanTwo() {
+    // M of 1 makes the level assignment degenerate because 1 / log(1) is infinite.
+    assertThrows(IllegalArgumentException.class, () -> MultiVectorHNSW.builder().withM(1));
+  }
+
+  @Test
   void testConcurrentReadWrites() throws InterruptedException {
     final int writerThreads = 2;
     final int readerThreads = 4;
@@ -290,45 +362,55 @@ class MultiVectorHNSWTest {
 
     assertDoesNotThrow(
         () -> {
+          List<Future<?>> futures = new java.util.ArrayList<>();
+
           // Writer tasks
           for (int i = 0; i < writerThreads; i++) {
-            executor.submit(
-                () -> {
-                  latch.countDown();
-                  try {
-                    latch.await();
-                    for (int j = 0; j < itemsPerWriter; j++) {
-                      int id = writeCounter.incrementAndGet();
-                      index.add((long) id, List.of(FloatVector.of(id, id)));
-                    }
-                  } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                  }
-                });
+            futures.add(
+                executor.submit(
+                    () -> {
+                      latch.countDown();
+                      try {
+                        latch.await();
+                        for (int j = 0; j < itemsPerWriter; j++) {
+                          int id = writeCounter.incrementAndGet();
+                          index.add((long) id, List.of(FloatVector.of(id, id)));
+                        }
+                      } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                      }
+                    }));
           }
 
           // Reader tasks
           for (int i = 0; i < readerThreads; i++) {
-            executor.submit(
-                () -> {
-                  latch.countDown();
-                  try {
-                    latch.await();
-                    for (int j = 0; j < 500; j++) {
-                      // Search for a random existing item
-                      int searchId = (j % writeCounter.get()) + 1;
-                      index.search(List.of(FloatVector.of(searchId, searchId)), 5, 10);
-                    }
-                  } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                  }
-                });
+            futures.add(
+                executor.submit(
+                    () -> {
+                      latch.countDown();
+                      try {
+                        latch.await();
+                        for (int j = 0; j < 500; j++) {
+                          // Search for an existing item. The counter can still be zero when a
+                          // reader starts, so guard the modulus.
+                          int searchId = (j % Math.max(1, writeCounter.get())) + 1;
+                          index.search(List.of(FloatVector.of(searchId, searchId)), 5, 10);
+                        }
+                      } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                      }
+                    }));
           }
 
           executor.shutdown();
           assertTrue(
               executor.awaitTermination(15, TimeUnit.SECONDS),
               "Executor did not terminate in time");
+
+          // Surface any exception thrown inside a worker task.
+          for (Future<?> future : futures) {
+            future.get();
+          }
 
           assertEquals(totalItems, index.size());
           assertTrue(index.get((long) totalItems).isPresent());

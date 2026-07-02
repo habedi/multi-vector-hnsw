@@ -120,7 +120,13 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
-  /** Inserts an item into the graph. The caller must hold the write lock. */
+  /**
+   * Inserts an item into the graph. The caller must hold the write lock.
+   *
+   * <p>All distance computations happen before the index is mutated, so a distance function that
+   * rejects the vectors (for example, a mismatched vector count or dimension) leaves the index
+   * unchanged.
+   */
   private void addInternal(long id, List<FloatVector> vectors, int level) {
     Node existingNode = nodes.get(id);
     if (existingNode != null && !existingNode.deleted) {
@@ -129,12 +135,15 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
 
     log.debug("Adding item {} at level {}", id, level);
-    Node newNode = new Node(id, level, m);
-    nodes.put(id, newNode);
-    vectorMap.put(id, vectors);
 
     Node currentEntryPoint = entryPoint;
     if (currentEntryPoint == null) {
+      // The first insertion computes no distances, so check the vectors against the distance
+      // function once. This rejects a vector list the configured distance cannot handle.
+      multiVectorDistance.compute(vectors, vectors);
+      Node newNode = new Node(id, level, m);
+      nodes.put(id, newNode);
+      vectorMap.put(id, List.copyOf(vectors));
       entryPoint = newNode;
       return;
     }
@@ -152,25 +161,35 @@ public final class MultiVectorHNSW implements Index, Serializable {
       nearestNode = nodes.get(closest.id);
     }
 
-    // Phase 2: Insert the new node by connecting it to its neighbors layer by layer
+    // Phase 2: Select the neighbors for each layer without mutating the graph. The new node has
+    // no incoming connections yet, so these searches cannot reach it.
+    Map<Integer, List<Neighbor>> neighborsPerLevel = new HashMap<>();
     for (int l = Math.min(level, entryPointLevel); l >= 0; l--) {
       PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, efConstruction, l);
       Neighbor closest = candidates.peek();
       if (closest == null) {
         break;
       }
-
-      List<Neighbor> neighbors = selectNeighborsHeuristic(candidates, m);
-      newNode.setConnections(l, neighbors);
-
-      for (Neighbor neighbor : neighbors) {
-        Node neighborNode = nodes.get(neighbor.id);
-        if (neighborNode != null) {
-          addConnection(neighborNode, new Neighbor(id, neighbor.distance), l);
-        }
-      }
+      neighborsPerLevel.put(l, selectNeighborsHeuristic(candidates, m));
       nearestNode = nodes.get(closest.id);
     }
+
+    // Phase 3: Commit. No distances are computed past this point, so no exception can leave the
+    // index partially updated.
+    Node newNode = new Node(id, level, m);
+    nodes.put(id, newNode);
+    vectorMap.put(id, List.copyOf(vectors));
+
+    neighborsPerLevel.forEach(
+        (l, neighbors) -> {
+          newNode.setConnections(l, neighbors);
+          for (Neighbor neighbor : neighbors) {
+            Node neighborNode = nodes.get(neighbor.id);
+            if (neighborNode != null) {
+              addConnection(neighborNode, new Neighbor(id, neighbor.distance), l);
+            }
+          }
+        });
 
     if (level > entryPointLevel) {
       entryPoint = newNode;
@@ -221,6 +240,15 @@ public final class MultiVectorHNSW implements Index, Serializable {
       }
       node.deleted = true;
       vectorMap.remove(id);
+      // Promote a live node when the entry point is deleted, so that later insertions and
+      // searches always start from a usable entry point.
+      if (node == entryPoint) {
+        entryPoint =
+            nodes.values().stream()
+                .filter(n -> !n.deleted)
+                .max(Comparator.comparingInt(n -> n.level))
+                .orElse(null);
+      }
       log.debug("Marked item {} for deletion", id);
       return true;
     } finally {
@@ -254,6 +282,10 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
   @Override
   public List<SearchResult> search(List<FloatVector> queryVectors, int k, int efSearch) {
+    validateVectors(queryVectors);
+    if (k <= 0) {
+      throw new IllegalArgumentException("k must be positive.");
+    }
     if (efSearch < k) {
       throw new IllegalArgumentException("efSearch must be greater than or equal to k");
     }
@@ -266,6 +298,8 @@ public final class MultiVectorHNSW implements Index, Serializable {
       }
 
       if (currentEntryPoint.deleted) {
+        // The entry point can be deleted in an index that was saved before remove() promoted a
+        // replacement. Use a local fallback; the field is only written under the write lock.
         Optional<Node> newEntryPoint =
             nodes.values().stream()
                 .filter(node -> !node.deleted)
@@ -273,7 +307,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
         if (newEntryPoint.isEmpty()) {
           return Collections.emptyList();
         }
-        this.entryPoint = currentEntryPoint = newEntryPoint.get();
+        currentEntryPoint = newEntryPoint.get();
         log.debug(
             "Original entry point was deleted. Using temporary entry point: {}",
             currentEntryPoint.id);
@@ -491,8 +525,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
   }
 
   /** A private record to represent a neighbor in the graph during a search or construction. */
-  private record Neighbor(long id, double distance)
-      implements Comparable<Neighbor>, Serializable { // FIX: Added Serializable
+  private record Neighbor(long id, double distance) implements Comparable<Neighbor>, Serializable {
     @Override
     public int compareTo(Neighbor other) {
       return Double.compare(this.distance, other.distance);
@@ -539,12 +572,13 @@ public final class MultiVectorHNSW implements Index, Serializable {
     /**
      * Sets the maximum number of connections per node per layer (M).
      *
-     * @param m A positive integer, typically between 5 and 48.
+     * @param m An integer greater than or equal to 2, typically between 5 and 48.
      * @return This builder instance.
      */
     public Builder withM(int m) {
-      if (m <= 0) {
-        throw new IllegalArgumentException("M must be positive.");
+      // M of 1 is rejected because the level assignment divides by log(m), which is zero.
+      if (m < 2) {
+        throw new IllegalArgumentException("M must be at least 2.");
       }
       this.m = m;
       return this;
