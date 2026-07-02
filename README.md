@@ -151,13 +151,13 @@ For each distance function, we report:
 
 Distances are aggregated using a uniformly-weighted average across the three vectors.
 
-In this setup, the average query time is **~1.17–1.37 ms**, with recall around **89%**.
+In this setup, the average query time is **~1.30–1.58 ms**, with recall around **90%**.
 
 | Distance Function | Train Size | Test Size | Avg Query Time (ms) | Recall@100 |
 |:------------------|:-----------|:----------|:--------------------|:-----------|
-| Squared Euclidean | 36,712     | 4,080     | 1.37                | 89.30%     |
-| Cosine            | 36,712     | 4,080     | 1.19                | 89.54%     |
-| Dot Product       | 36,712     | 4,080     | 1.17                | 89.19%     |
+| Squared Euclidean | 36,712     | 4,080     | 1.58                | 89.75%     |
+| Cosine            | 36,712     | 4,080     | 1.30                | 89.58%     |
+| Dot Product       | 36,712     | 4,080     | 1.34                | 89.60%     |
 
 You can reproduce these results by running:
 
