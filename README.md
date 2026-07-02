@@ -146,18 +146,20 @@ Searches were performed with `efSearch=100` to find the top 100 nearest neighbor
 
 For each distance function, we report:
 
+* **Build Time:** The time in seconds to build the index from the training data.
 * **Average Query Time:** The average time in milliseconds to perform a single search.
 * **Recall@100:** How many of the top 100 true nearest neighbors were found, on average.
 
 Distances are aggregated using a uniformly-weighted average across the three vectors.
 
-In this setup, the average query time is **~1.30–1.58 ms**, with recall around **90%**.
+In this setup, the average query time is **~1.1–1.4 ms**, with recall around **89%**.
+Query times are averaged over two JVM forks with five measurement iterations each, and the error bounds are below 0.1 ms.
 
-| Distance Function | Train Size | Test Size | Avg Query Time (ms) | Recall@100 |
-|:------------------|:-----------|:----------|:--------------------|:-----------|
-| Squared Euclidean | 36,712     | 4,080     | 1.58                | 89.75%     |
-| Cosine            | 36,712     | 4,080     | 1.30                | 89.58%     |
-| Dot Product       | 36,712     | 4,080     | 1.34                | 89.60%     |
+| Distance Function | Train Size | Test Size | Build Time (s) | Avg Query Time (ms) | Recall@100 |
+|:------------------|:-----------|:----------|:---------------|:--------------------|:-----------|
+| Squared Euclidean | 36,712     | 4,080     | 74.9           | 1.37                | 88.84%     |
+| Cosine            | 36,712     | 4,080     | 62.3           | 1.08                | 89.67%     |
+| Dot Product       | 36,712     | 4,080     | 60.9           | 1.06                | 89.56%     |
 
 You can reproduce these results by running:
 
