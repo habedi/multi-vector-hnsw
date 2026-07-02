@@ -2,10 +2,15 @@
 
 The code for the benchmarks is in [src/benchmark](../src/benchmark/java/io/github/habedi/mvhnsw/bench) directory.
 Check out [BenchmarkCLI.java](../src/benchmark/java/io/github/habedi/mvhnsw/bench/BenchmarkCLI.java) for default parameters and options.
-The benchmarks primarily measure average build time and search time (in milliseconds) as well as recall@k (with k=100) for a given dataset.
+The benchmarks measure the index build time (in seconds), the average search time per query (in milliseconds), and recall@k (with
+k=100) for a given dataset.
+The build benchmark runs in single-shot mode, and the search benchmark measures one query per operation across two JVM forks.
+Recall is computed once per trial, outside the timed search loop, so it does not affect the reported query times.
 
 Execute `make bench-run BENCHMARK_DATASET=<dataset_name>` to start the benchmarks for a specified dataset.
 At the moment, `<dataset_name>` can be one of `se_cs_768`, `se_ds_768`, or `se_p_768`.
+The `--ef-search` option accepts a comma-separated list of values (for example, `--ef-search=100,200,400`), which runs the search
+benchmark once per value to show the recall and query time trade-off.
 
 The commands below will run the benchmarks for all three datasets.
 (They must be run inside the root directory of the project.)

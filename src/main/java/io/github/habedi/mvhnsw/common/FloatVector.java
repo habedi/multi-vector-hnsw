@@ -2,6 +2,8 @@ package io.github.habedi.mvhnsw.common;
 
 import static jdk.incubator.vector.FloatVector.SPECIES_PREFERRED;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -20,11 +22,17 @@ public final class FloatVector implements Vector<Float>, Serializable {
 
   private static final VectorSpecies<Float> SPECIES = SPECIES_PREFERRED;
 
+  /**
+   * Sentinel marking the norm cache as not yet computed. {@code NaN} is used because it is outside
+   * the range of valid norms, including the {@code 0.0} norm of a zero vector.
+   */
+  private static final double NORM_NOT_COMPUTED = Double.NaN;
+
   /** The internal, private array storing the vector's components. */
   private final float[] data;
 
   /** A transient, volatile field to cache the calculated L2 norm for performance. */
-  private transient volatile double norm = -1;
+  private transient volatile double norm = NORM_NOT_COMPUTED;
 
   /**
    * Constructs a new FloatVector.
@@ -195,9 +203,9 @@ public final class FloatVector implements Vector<Float>, Serializable {
 
   @Override
   public double norm() {
-    if (norm < 0) { // First check (no lock)
+    if (Double.isNaN(norm)) { // First check (no lock)
       synchronized (this) {
-        if (norm < 0) { // Second check (with lock)
+        if (Double.isNaN(norm)) { // Second check (with lock)
           double sumSq = 0.0;
           int bound = SPECIES.loopBound(data.length);
           int i = 0;
@@ -229,6 +237,17 @@ public final class FloatVector implements Vector<Float>, Serializable {
     }
     double similarity = dot / norms;
     return Math.max(-1.0, Math.min(1.0, similarity));
+  }
+
+  /**
+   * Custom deserialization method to reset the transient norm cache. Without this, the transient
+   * field defaults to {@code 0.0}, which the lazy-initialization guard would treat as a computed
+   * norm.
+   */
+  @Serial
+  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    this.norm = NORM_NOT_COMPUTED;
   }
 
   @Override

@@ -40,8 +40,12 @@ class CosineTest {
   void testZeroVectors() {
     FloatVector v1 = FloatVector.of(0.0f, 0.0f, 0.0f);
     FloatVector v2 = FloatVector.of(1.0f, 2.0f, 3.0f);
-    // Similarity is 0 if a norm is 0, so distance is 1
+    // Cosine similarity is mathematically undefined when a zero vector is involved. This library
+    // intentionally defines the similarity as 0 when the product of the two norms is 0, so the
+    // distance is 1.
     assertEquals(1.0, distance.compute(v1, v2), 0.0001);
+    // Equal vectors are special-cased to similarity 1 before norms are computed, so the distance
+    // of a zero vector to itself is 0.
     assertEquals(0.0, distance.compute(v1, v1), 0.0001);
   }
 

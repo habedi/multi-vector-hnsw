@@ -91,67 +91,109 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
   @Override
   public void add(long id, List<FloatVector> vectors) {
-    add(id, vectors, assignLevel());
+    validateVectors(vectors);
+    lock.writeLock().lock();
+    try {
+      addInternal(id, vectors, assignLevel());
+    } finally {
+      lock.writeLock().unlock();
+    }
   }
 
   private void add(long id, List<FloatVector> vectors, int level) {
     lock.writeLock().lock();
     try {
-      Node existingNode = nodes.get(id);
-      if (existingNode != null && !existingNode.deleted) {
-        throw new IllegalArgumentException(
-            "Item with ID " + id + " already exists. Please remove it first to update.");
-      }
-
-      log.debug("Adding item {} at level {}", id, level);
-      Node newNode = new Node(id, level, m);
-      nodes.put(id, newNode);
-      vectorMap.put(id, vectors);
-
-      Node currentEntryPoint = entryPoint;
-      if (currentEntryPoint == null) {
-        entryPoint = newNode;
-        return;
-      }
-
-      int entryPointLevel = currentEntryPoint.level;
-      Node nearestNode = currentEntryPoint;
-
-      // Phase 1: Find the nearest neighbor in the upper layers
-      for (int l = entryPointLevel; l > level; l--) {
-        PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, 1, l);
-        if (candidates.isEmpty()) {
-          break;
-        }
-        nearestNode = nodes.get(candidates.peek().id);
-      }
-
-      // Phase 2: Insert the new node by connecting it to its neighbors layer by layer
-      for (int l = Math.min(level, entryPointLevel); l >= 0; l--) {
-        PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, efConstruction, l);
-        if (candidates.isEmpty()) {
-          break;
-        }
-
-        List<Neighbor> neighbors = selectNeighborsHeuristic(candidates, m);
-        newNode.setConnections(l, neighbors);
-
-        for (Neighbor neighbor : neighbors) {
-          Node neighborNode = nodes.get(neighbor.id);
-          if (neighborNode != null) {
-            addConnection(neighborNode, new Neighbor(id, neighbor.distance), l);
-          }
-        }
-        assert candidates.peek() != null;
-        nearestNode = nodes.get(candidates.peek().id);
-      }
-
-      if (level > entryPointLevel) {
-        entryPoint = newNode;
-        log.debug("New entry point: Node {} at level {}", newNode.id, level);
-      }
+      addInternal(id, vectors, level);
     } finally {
       lock.writeLock().unlock();
+    }
+  }
+
+  /** Validates the vectors argument of a public write operation at the call site. */
+  private static void validateVectors(List<FloatVector> vectors) {
+    Objects.requireNonNull(vectors, "Vectors must not be null.");
+    if (vectors.isEmpty()) {
+      throw new IllegalArgumentException("Vectors must not be empty.");
+    }
+    for (FloatVector vector : vectors) {
+      Objects.requireNonNull(vector, "Vectors must not contain null elements.");
+    }
+  }
+
+  /**
+   * Inserts an item into the graph. The caller must hold the write lock.
+   *
+   * <p>All distance computations happen before the index is mutated, so a distance function that
+   * rejects the vectors (for example, a mismatched vector count or dimension) leaves the index
+   * unchanged.
+   */
+  private void addInternal(long id, List<FloatVector> vectors, int level) {
+    Node existingNode = nodes.get(id);
+    if (existingNode != null && !existingNode.deleted) {
+      throw new IllegalArgumentException(
+          "Item with ID " + id + " already exists. Please remove it first to update.");
+    }
+
+    log.debug("Adding item {} at level {}", id, level);
+
+    Node currentEntryPoint = entryPoint;
+    if (currentEntryPoint == null) {
+      // The first insertion computes no distances, so check the vectors against the distance
+      // function once. This rejects a vector list the configured distance cannot handle.
+      multiVectorDistance.compute(vectors, vectors);
+      Node newNode = new Node(id, level, m);
+      nodes.put(id, newNode);
+      vectorMap.put(id, List.copyOf(vectors));
+      entryPoint = newNode;
+      return;
+    }
+
+    int entryPointLevel = currentEntryPoint.level;
+    Node nearestNode = currentEntryPoint;
+
+    // Phase 1: Find the nearest neighbor in the upper layers
+    for (int l = entryPointLevel; l > level; l--) {
+      PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, 1, l);
+      Neighbor closest = candidates.peek();
+      if (closest == null) {
+        break;
+      }
+      nearestNode = nodes.get(closest.id);
+    }
+
+    // Phase 2: Select the neighbors for each layer without mutating the graph. The new node has
+    // no incoming connections yet, so these searches cannot reach it.
+    Map<Integer, List<Neighbor>> neighborsPerLevel = new HashMap<>();
+    for (int l = Math.min(level, entryPointLevel); l >= 0; l--) {
+      PriorityQueue<Neighbor> candidates = searchLayer(nearestNode, vectors, efConstruction, l);
+      Neighbor closest = candidates.peek();
+      if (closest == null) {
+        break;
+      }
+      neighborsPerLevel.put(l, selectNeighborsHeuristic(candidates, m));
+      nearestNode = nodes.get(closest.id);
+    }
+
+    // Phase 3: Commit. No distances are computed past this point, so no exception can leave the
+    // index partially updated.
+    Node newNode = new Node(id, level, m);
+    nodes.put(id, newNode);
+    vectorMap.put(id, List.copyOf(vectors));
+
+    neighborsPerLevel.forEach(
+        (l, neighbors) -> {
+          newNode.setConnections(l, neighbors);
+          for (Neighbor neighbor : neighbors) {
+            Node neighborNode = nodes.get(neighbor.id);
+            if (neighborNode != null) {
+              addConnection(neighborNode, new Neighbor(id, neighbor.distance), l);
+            }
+          }
+        });
+
+    if (level > entryPointLevel) {
+      entryPoint = newNode;
+      log.debug("New entry point: Node {} at level {}", newNode.id, level);
     }
   }
 
@@ -178,7 +220,12 @@ public final class MultiVectorHNSW implements Index, Serializable {
     }
   }
 
-  /** A simple heuristic to select the best neighbors from a candidate set. */
+  /**
+   * A simple heuristic to select the best neighbors from a candidate set.
+   *
+   * <p>Note that {@link PriorityQueue#stream()} emits elements in internal heap order, not in
+   * priority order, so the {@code sorted()} call is required for correctness.
+   */
   private List<Neighbor> selectNeighborsHeuristic(PriorityQueue<Neighbor> candidates, int count) {
     return candidates.stream().sorted().limit(count).collect(Collectors.toList());
   }
@@ -193,6 +240,15 @@ public final class MultiVectorHNSW implements Index, Serializable {
       }
       node.deleted = true;
       vectorMap.remove(id);
+      // Promote a live node when the entry point is deleted, so that later insertions and
+      // searches always start from a usable entry point.
+      if (node == entryPoint) {
+        entryPoint =
+            nodes.values().stream()
+                .filter(n -> !n.deleted)
+                .max(Comparator.comparingInt(n -> n.level))
+                .orElse(null);
+      }
       log.debug("Marked item {} for deletion", id);
       return true;
     } finally {
@@ -202,12 +258,34 @@ public final class MultiVectorHNSW implements Index, Serializable {
 
   @Override
   public void addAll(Map<Long, List<FloatVector>> items) {
+    Objects.requireNonNull(items, "Items must not be null.");
     log.info("Adding {} items to the index.", items.size());
-    items.forEach(this::add);
+    lock.writeLock().lock();
+    try {
+      // Validate the whole batch before inserting anything, so an invalid entry or a duplicate ID
+      // does not leave the index partially updated.
+      for (Map.Entry<Long, List<FloatVector>> entry : items.entrySet()) {
+        validateVectors(entry.getValue());
+        Node existingNode = nodes.get(entry.getKey());
+        if (existingNode != null && !existingNode.deleted) {
+          throw new IllegalArgumentException(
+              "Item with ID "
+                  + entry.getKey()
+                  + " already exists. Please remove it first to update.");
+        }
+      }
+      items.forEach((id, vectors) -> addInternal(id, vectors, assignLevel()));
+    } finally {
+      lock.writeLock().unlock();
+    }
   }
 
   @Override
   public List<SearchResult> search(List<FloatVector> queryVectors, int k, int efSearch) {
+    validateVectors(queryVectors);
+    if (k <= 0) {
+      throw new IllegalArgumentException("k must be positive.");
+    }
     if (efSearch < k) {
       throw new IllegalArgumentException("efSearch must be greater than or equal to k");
     }
@@ -220,6 +298,8 @@ public final class MultiVectorHNSW implements Index, Serializable {
       }
 
       if (currentEntryPoint.deleted) {
+        // The entry point can be deleted in an index that was saved before remove() promoted a
+        // replacement. Use a local fallback; the field is only written under the write lock.
         Optional<Node> newEntryPoint =
             nodes.values().stream()
                 .filter(node -> !node.deleted)
@@ -227,7 +307,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
         if (newEntryPoint.isEmpty()) {
           return Collections.emptyList();
         }
-        this.entryPoint = currentEntryPoint = newEntryPoint.get();
+        currentEntryPoint = newEntryPoint.get();
         log.debug(
             "Original entry point was deleted. Using temporary entry point: {}",
             currentEntryPoint.id);
@@ -315,13 +395,18 @@ public final class MultiVectorHNSW implements Index, Serializable {
   public void clear() {
     lock.writeLock().lock();
     try {
-      vectorMap.clear();
-      nodes.clear();
-      entryPoint = null;
-      log.info("Index cleared.");
+      clearInternal();
     } finally {
       lock.writeLock().unlock();
     }
+  }
+
+  /** Clears all index state. The caller must hold the write lock. */
+  private void clearInternal() {
+    vectorMap.clear();
+    nodes.clear();
+    entryPoint = null;
+    log.info("Index cleared.");
   }
 
   @Override
@@ -347,13 +432,13 @@ public final class MultiVectorHNSW implements Index, Serializable {
                       Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
       log.info("Starting vacuum. Rebuilding index with {} live items.", liveNodes.size());
-      clear();
+      clearInternal();
 
       liveNodes.forEach(
           node -> {
             List<FloatVector> vectors = liveVectors.get(node.id);
             if (vectors != null) {
-              add(node.id, vectors, node.level);
+              addInternal(node.id, vectors, node.level);
             }
           });
 
@@ -384,8 +469,8 @@ public final class MultiVectorHNSW implements Index, Serializable {
     while (!candidates.isEmpty()) {
       Neighbor candidate = candidates.poll();
       if (results.size() >= ef) {
-        assert results.peek() != null;
-        if (candidate.distance > results.peek().distance) {
+        Neighbor furthestResult = Objects.requireNonNull(results.peek());
+        if (candidate.distance > furthestResult.distance) {
           break;
         }
       }
@@ -440,8 +525,7 @@ public final class MultiVectorHNSW implements Index, Serializable {
   }
 
   /** A private record to represent a neighbor in the graph during a search or construction. */
-  private record Neighbor(long id, double distance)
-      implements Comparable<Neighbor>, Serializable { // FIX: Added Serializable
+  private record Neighbor(long id, double distance) implements Comparable<Neighbor>, Serializable {
     @Override
     public int compareTo(Neighbor other) {
       return Double.compare(this.distance, other.distance);
@@ -488,12 +572,13 @@ public final class MultiVectorHNSW implements Index, Serializable {
     /**
      * Sets the maximum number of connections per node per layer (M).
      *
-     * @param m A positive integer, typically between 5 and 48.
+     * @param m An integer greater than or equal to 2, typically between 5 and 48.
      * @return This builder instance.
      */
     public Builder withM(int m) {
-      if (m <= 0) {
-        throw new IllegalArgumentException("M must be positive.");
+      // M of 1 is rejected because the level assignment divides by log(m), which is zero.
+      if (m < 2) {
+        throw new IllegalArgumentException("M must be at least 2.");
       }
       this.m = m;
       return this;

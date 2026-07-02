@@ -8,7 +8,6 @@
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/habedi/multi-vector-hnsw/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/multi-vector-hnsw/actions/workflows/tests.yml)
 [![Code Coverage](https://img.shields.io/codecov/c/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codecov)](https://codecov.io/gh/habedi/multi-vector-hnsw)
-[![Code Quality](https://img.shields.io/codefactor/grade/github/habedi/multi-vector-hnsw?style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/multi-vector-hnsw)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.habedi/multi-vector-hnsw?label=maven&style=flat&labelColor=282c34&logo=apache-maven)](https://central.sonatype.com/artifact/io.github.habedi/multi-vector-hnsw)
 [![Docs](https://img.shields.io/badge/docs-latest-007ec6?style=flat&labelColor=282c34&logo=readthedocs)](docs)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-007ec6?style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/multi-vector-hnsw)
@@ -37,7 +36,7 @@ This library extends HNSW to support that: multi-vector indexing, custom distanc
 * Bulk inserts and soft delete support
 * Save and load support for persisting indexes to disk
 * Fast distance calculations using SIMD instructions via Java Vector API
-* Pure Java 17 implementation with no native dependencies
+* Pure Java implementation with no native dependencies (requires Java 17 or newer)
 
 ---
 
@@ -50,7 +49,7 @@ If you are using Maven, add this dependency to your `pom.xml`:
 <dependency>
     <groupId>io.github.habedi</groupId>
     <artifactId>multi-vector-hnsw</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
 </dependency>
 ```
 
@@ -58,7 +57,7 @@ If you are using Gradle, add this dependency to your `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.github.habedi:multi-vector-hnsw:0.2.1'
+    implementation 'io.github.habedi:multi-vector-hnsw:0.2.2'
 }
 ```
 
@@ -146,18 +145,20 @@ Searches were performed with `efSearch=100` to find the top 100 nearest neighbor
 
 For each distance function, we report:
 
+* **Build Time:** The time in seconds to build the index from the training data.
 * **Average Query Time:** The average time in milliseconds to perform a single search.
 * **Recall@100:** How many of the top 100 true nearest neighbors were found, on average.
 
 Distances are aggregated using a uniformly-weighted average across the three vectors.
 
-In this setup, the average query time is **~1.17–1.37 ms**, with recall around **89%**.
+In this setup, the average query time is **~1.1–1.4 ms**, with recall around **89%**.
+Query times are averaged over two JVM forks with five measurement iterations each, and the error bounds are below 0.1 ms.
 
-| Distance Function | Train Size | Test Size | Avg Query Time (ms) | Recall@100 |
-|:------------------|:-----------|:----------|:--------------------|:-----------|
-| Squared Euclidean | 36,712     | 4,080     | 1.37                | 89.30%     |
-| Cosine            | 36,712     | 4,080     | 1.19                | 89.54%     |
-| Dot Product       | 36,712     | 4,080     | 1.17                | 89.19%     |
+| Distance Function | Train Size | Test Size | Build Time (s) | Avg Query Time (ms) | Recall@100 |
+|:------------------|:-----------|:----------|:---------------|:--------------------|:-----------|
+| Squared Euclidean | 36,712     | 4,080     | 74.9           | 1.37                | 88.84%     |
+| Cosine            | 36,712     | 4,080     | 62.3           | 1.08                | 89.67%     |
+| Dot Product       | 36,712     | 4,080     | 60.9           | 1.06                | 89.56%     |
 
 You can reproduce these results by running:
 

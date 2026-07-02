@@ -3,7 +3,9 @@ package io.github.habedi.mvhnsw.bench;
 import io.github.habedi.mvhnsw.bench.data.BenchmarkData;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -32,6 +34,9 @@ public class BenchmarkCLI implements Callable<Integer> {
 
   private static final int K = 100;
 
+  private static final List<String> METRIC_ORDER =
+    List.of("squared_euclidean", "cosine", "dot_product");
+
   @Option(
     names = {"-d", "--dataset"},
     description = "The name of the dataset to use for the benchmark.",
@@ -55,9 +60,11 @@ public class BenchmarkCLI implements Callable<Integer> {
 
   @Option(
     names = {"-efs", "--ef-search"},
-    description = "The efSearch parameter for HNSW.",
-    defaultValue = "100")
-  private int efSearch;
+    description =
+      "The efSearch parameter for HNSW. Accepts a comma-separated list of values to sweep.",
+    defaultValue = "100",
+    split = ",")
+  private int[] efSearch;
 
   @Option(
     names = {"-p", "--profiler"},
@@ -76,7 +83,10 @@ public class BenchmarkCLI implements Callable<Integer> {
       datasetName,
       m,
       efConstruction,
-      efSearch);
+      Arrays.toString(efSearch));
+
+    String[] efSearchValues =
+      Arrays.stream(efSearch).mapToObj(String::valueOf).toArray(String[]::new);
 
     ChainedOptionsBuilder builder =
       new OptionsBuilder()
@@ -85,7 +95,7 @@ public class BenchmarkCLI implements Callable<Integer> {
         .param("dataPath", dataPath)
         .param("m", String.valueOf(m))
         .param("efConstruction", String.valueOf(efConstruction))
-        .param("efSearch", String.valueOf(efSearch));
+        .param("efSearch", efSearchValues);
 
     if (profiler != null && !profiler.isBlank()) {
       log.info("Enabling JMH profiler: {}", profiler);
@@ -99,11 +109,16 @@ public class BenchmarkCLI implements Callable<Integer> {
     return 0;
   }
 
+  private static String paramKey(RunResult result) {
+    var params = result.getParams();
+    return params.getParam("distanceMetric") + "|" + params.getParam("efSearch");
+  }
+
   private void printSummaryTable(Collection<RunResult> results) throws IOException {
     System.out.println("\n\n--- HNSW Benchmark Summary ---");
     String header =
       String.format(
-        "%-20s | %-8s | %-8s | %-8s | %-5s | %-8s | %-8s | %-20s | %-12s",
+        "%-20s | %-8s | %-8s | %-8s | %-5s | %-8s | %-8s | %-18s | %-20s | %-12s",
         "Distance",
         "Train",
         "Test",
@@ -111,23 +126,30 @@ public class BenchmarkCLI implements Callable<Integer> {
         "M",
         "efConst",
         "efSearch",
+        "Build Time (s)",
         "Avg Time/Query (ms)",
         "Recall@" + K);
     System.out.println(header);
     System.out.println(new String(new char[header.length()]).replace("\0", "-"));
 
-    Map<String, RunResult> searchResultsByMetric =
+    Map<String, RunResult> buildResultsByKey =
+      results.stream()
+        .filter(r -> r.getPrimaryResult().getLabel().equals("build"))
+        .collect(Collectors.toMap(BenchmarkCLI::paramKey, r -> r, (a, b) -> a));
+
+    Comparator<RunResult> byMetric =
+      Comparator.comparingInt(r -> METRIC_ORDER.indexOf(r.getParams().getParam("distanceMetric")));
+    Comparator<RunResult> byEfSearch =
+      Comparator.comparingInt(r -> Integer.parseInt(r.getParams().getParam("efSearch")));
+    List<RunResult> searchResults =
       results.stream()
         .filter(r -> r.getPrimaryResult().getLabel().equals("search"))
-        .collect(Collectors.toMap(r -> r.getParams().getParam("distanceMetric"), r -> r));
+        .sorted(byMetric.thenComparing(byEfSearch))
+        .toList();
 
-    for (String metric : List.of("squared_euclidean", "cosine", "dot_product")) {
-      RunResult r = searchResultsByMetric.get(metric);
-      if (r == null) {
-        continue;
-      }
-
+    for (RunResult r : searchResults) {
       var params = r.getParams();
+      String metric = params.getParam("distanceMetric");
       int mParam = Integer.parseInt(params.getParam("m"));
       int efcParam = Integer.parseInt(params.getParam("efConstruction"));
       int efsParam = Integer.parseInt(params.getParam("efSearch"));
@@ -142,22 +164,41 @@ public class BenchmarkCLI implements Callable<Integer> {
 
       double totalHits = (hitsResult != null) ? hitsResult.getScore() : 0.0;
       double totalQueries = (totalQueriesResult != null) ? totalQueriesResult.getScore() : 0.0;
-      double recall = (totalQueries == 0) ? 0 : totalHits / (totalQueries * K);
 
-      // JMH score for throughput is in (ops/ms). An "op" is one full run of the benchmark method.
+      // Recall is |retrieved ∩ relevant| / |relevant|. The benchmark measures recall once per
+      // trial and reports the same totals every iteration, so the counters sum across iterations
+      // and forks. Both counters scale identically, so their ratio is the per-query average hit
+      // count, which is divided by the mean ground-truth size (capped at K).
+      double avgRelevant =
+        data.groundTruth().values().stream()
+          .mapToDouble(truth -> Math.min(K, truth.size()))
+          .average()
+          .orElse(0.0);
+      double recall =
+        (totalQueries == 0 || avgRelevant == 0) ? 0 : totalHits / (totalQueries * avgRelevant);
+
+      // The search benchmark op is a single query, so per-query time is the inverse of the JMH
+      // throughput score (ops/ms).
       double throughputOpsPerMs = r.getPrimaryResult().getScore();
       double throughputError = r.getPrimaryResult().getScoreError();
-
-      // Our benchmark "op" runs searches for the entire test dataset.
-      double queriesPerOp = data.testData().size();
-
-      // Calculate the average time for a single query.
-      double avgTimePerQuery = 1.0 / (throughputOpsPerMs * queriesPerOp);
+      double avgTimePerQuery = 1.0 / throughputOpsPerMs;
 
       // Propagate the relative error: error_time/time = error_throughput/throughput
       double relativeError = throughputError / throughputOpsPerMs;
       double avgTimeError = avgTimePerQuery * relativeError;
       String avgTimeStr = String.format("%.4f ± %.4f", avgTimePerQuery, avgTimeError);
+
+      String buildTimeStr = "n/a";
+      RunResult buildResult = buildResultsByKey.get(paramKey(r));
+      if (buildResult != null) {
+        // The build benchmark runs in single-shot mode with a millisecond output unit.
+        double buildMs = buildResult.getPrimaryResult().getScore();
+        double buildErrMs = buildResult.getPrimaryResult().getScoreError();
+        buildTimeStr =
+          Double.isNaN(buildErrMs)
+            ? String.format("%.1f", buildMs / 1000.0)
+            : String.format("%.1f ± %.1f", buildMs / 1000.0, buildErrMs / 1000.0);
+      }
 
       String dims =
         String.format(
@@ -166,7 +207,7 @@ public class BenchmarkCLI implements Callable<Integer> {
           data.trainingData().get(0).toFloatVectors().get(0).length());
 
       System.out.printf(
-        "%-20s | %-8d | %-8d | %-8s | %-5d | %-8d | %-8d | %-20s | %.4f\n",
+        "%-20s | %-8d | %-8d | %-8s | %-5d | %-8d | %-8d | %-18s | %-20s | %.4f\n",
         metric,
         data.trainingData().size(),
         data.testData().size(),
@@ -174,6 +215,7 @@ public class BenchmarkCLI implements Callable<Integer> {
         mParam,
         efcParam,
         efsParam,
+        buildTimeStr,
         avgTimeStr,
         recall);
     }

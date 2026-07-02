@@ -65,7 +65,7 @@ public class E04_CustomDistance {
       if (vectors1.size() != vectors2.size() || vectors1.isEmpty()) {
         throw new IllegalArgumentException("Vector lists must be non-empty and of equal size.");
       }
-      double maxDistance = Double.MIN_VALUE;
+      double maxDistance = Double.NEGATIVE_INFINITY;
       for (int i = 0; i < vectors1.size(); i++) {
         double dist = baseDistance.compute(vectors1.get(i), vectors2.get(i));
         if (dist > maxDistance) {
